@@ -16,7 +16,6 @@ __author__ = "Guillaume Bellec"
 
 import numpy as np
 import numpy.random as rd
-import random
 from time import time
 
 
@@ -92,7 +91,7 @@ class AnnealSolver:
                 x = x_new   ## Replace me
                 f = f_new
             else:
-                if random.random() < np.exp(-(f_new - f)/T):
+                if rd.random() < np.exp(-(f_new - f)/T):
                     x = x_new   ## Replace me
                     f = f_new
             # -----------------------

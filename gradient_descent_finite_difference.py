@@ -21,17 +21,19 @@ from time import time
 
 
 class GDFDSolver:
-    def __init__(self, learning_rate, exploration_rate, n_random_step, n_iteration, stop_criterion=-np.Inf):
+    def __init__(self, learning_rate, exploration_step, n_random_step, step_decay, n_iteration, stop_criterion=-np.Inf):
         '''
         Generic solver based on gradient descent and estimation of the gradient with finite differences.
 
         :param learning_rate: learning rate as defined in standard gradient descent
-        :param exploration_rate: size of the neighbourhood used to estimate the gradient
+        :param exploration_step: size of the neighbourhood used to estimate the gradient
+        :param step_decay: reduce the step size at each iteartion so simulate a decaying temperature
         :param n_random_step: number of neighbours to estimate the gradient
         :param n_iteration: number of iterations
         '''
         self.n_iteration = n_iteration
-        self.exploration_rate = exploration_rate
+        self.step_decay = step_decay
+        self.exploration_step = exploration_step
         self.learning_rate = learning_rate
         self.n_random_steps = n_random_step
         self.stop_criterion = stop_criterion
@@ -51,9 +53,13 @@ class GDFDSolver:
         f = np.Inf
 
         t0 = time()
-        function_call = 1
+        function_call = 0
         f_list = []
         x_list = []
+
+        # Make a copy of the learning rate and exploration step to initialize them at each call of the solve method
+        lr = self.learning_rate
+        er = self.exploration_step
 
         for k in range(self.n_iteration):
             # New step, and estimate the gradient
@@ -76,9 +82,12 @@ class GDFDSolver:
             #   4) Make a gradient descent step of size learning_rate in the direction of the gradient
             #   (Tip: clip the new solution within the admissible bounds
             #
-
-            # dx = np.zeros((self.n_random_steps, x0.size)) # Replace me but the size should match
-            dx = rd.normal(loc=0.0, scale=self.exploration_rate, size=(self.n_random_steps, x0.size))
+            #   5) Similarly to a decaying temperature, reduce the learning rate and exploration step size
+            #   At each iteration multiply the step by the constant 'self.step_decay'
+            #   WARNING: make not reduce the constant 'self.learning_rate' but a copy of it otherwise it will not be
+            #       reinitialized after each call of the '.solve' method
+            #
+            dx = rd.normal(loc=0.0, scale=er, size=(self.n_random_steps, x0.size))
 
             f_ = np.zeros(self.n_random_steps) # Replace me but the size should match
             for i in range(0, self.n_random_steps):
@@ -92,10 +101,12 @@ class GDFDSolver:
             g = np.zeros(x.shape) # Replace me but the size should match
             g = np.dot(np.linalg.pinv(A), df)
 
-            x = x - self.learning_rate * g
+            x = x - lr * g
             x[0] = max(min(x[0], bound[1]), bound[0])
             x[1] = max(min(x[1], bound[1]), bound[0])
 
+            er *= self.step_decay
+            lr *= self.step_decay
             #-----------------------
 
             f_list.append(f)
@@ -110,7 +121,7 @@ class GDFDSolver:
         result = {
             'x_list': x_list,
             'f_list': f_list,
-            'function_call': function_call,
+            'n_function_call': function_call,
             'time': t,
             'iteration': k
         }

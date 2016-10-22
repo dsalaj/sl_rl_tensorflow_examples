@@ -42,10 +42,11 @@ for i in range(n_random_intilization):
     list_score_anneal.append(res_anneal['f_list'][-1])
 
 # Solve with: Gradient Descent
-solver = GDFDSolver(learning_rate=1, exploration_rate=1, n_random_step=9, n_iteration=100)
+solver = GDFDSolver(learning_rate=1, exploration_step=1, step_decay= .9, n_random_step=9, n_iteration=100)
 
 list_score_gd = []
 for i in range(n_random_intilization):
+    s0 = rd.rand(2) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate randomly
     res_gd = solver.solve(s0, fun, bound)  # Solve the problem
     list_score_gd.append(res_gd['f_list'][-1])
 

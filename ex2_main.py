@@ -105,7 +105,7 @@ def cost_function(parameter):
 #   Question 2.c)
 #       Change the solver or replace it with a Gradient Descent or Genetic algorithm based solver
 #       For genetic algorithm you will also have to change the initialization to generate a population of coding string.
-#       It has to be similarly generated with uniform probability within the given bounds.
+#       Each string has to be similarly generated with uniform probability within the given bounds.
 #
 #   Question 2.d)
 #       Test how the performance of each algorithm depends on the initialization of the coding string.

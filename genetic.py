@@ -53,12 +53,10 @@ class GeneticSolver:
         #   The probability to have one or more coefficient that mutes is self.mutation_rate for each parameter in pop
         #   (Tip: try to use numpy built-in function and avoid for loops to save computation time)
         #
-
         if rd.uniform() < self.mutation_rate:
             pop[0] = rd.uniform(bound[0], bound[1])
         if rd.uniform() < self.mutation_rate:
             pop[1] = rd.uniform(bound[0], bound[1])
-
         # -----------------------
 
         return pop
@@ -80,7 +78,6 @@ class GeneticSolver:
         #   (Tip: for instance, one can first copy the population and create a third that is the crossover of the first
         #   two)
         #
-
         src1 = pop.copy()
         src2 = pop.copy()
         for i, i_1 in enumerate(src1):
@@ -95,7 +92,6 @@ class GeneticSolver:
                     x_2 = (1-r) * i_1[0] + r * i_2[0]
                     y_2 = (1-r) * i_1[1] + r * i_2[1]
                     pop[j] = [x_2, y_2]
-
         # -----------------------
 
         return pop
@@ -122,7 +118,6 @@ class GeneticSolver:
         #       the slides described a maximization of the fitness,
         #       2) Make sure to also re-order the cost-functions in f_pop accordingly.
         #
-
         new_pop = []
         new_f_pop = []
         exp_sum = np.sum([np.exp(f/self.selection_temperature) for f in f_pop])
@@ -143,9 +138,11 @@ class GeneticSolver:
 
         new_f_pop = np.array(new_f_pop)
 
+        pop = new_pop
+        f_pop = new_f_pop
         # -----------------------
 
-        return new_pop, new_f_pop
+        return pop, f_pop
 
     def solve(self, pop, fun, bound):
         '''
@@ -202,7 +199,7 @@ class GeneticSolver:
             'f_list': f_list,
             'pop_list': np.array(pop_list),
             'f_pop_list': np.array(f_pop_list),
-            'function_call': function_call,
+            'n_function_call': function_call,
             'time': t,
             'iteration': k
         }
