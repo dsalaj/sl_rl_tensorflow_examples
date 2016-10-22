@@ -35,7 +35,8 @@ import matplotlib.pyplot as plt
 from simulated_annealing import AnnealSolver
 
 n_trial_per_call = 10  # Number of trials to estimate the expected accumulated reward at every optimization steps
-render = True  # Run a video of the optimization, set to False TO SAVE COMPUTATION TIME
+render = False
+# render = True  # Run a video of the optimization, set to False TO SAVE COMPUTATION TIME
 bound = [-3, 3]  # Bound of the policy parameters [-3,3] is a reasonable choice, no need to change it
 
 # Load the environment
@@ -92,7 +93,8 @@ def cost_function(parameter):
     #       Define the cost function as a function of the accumulated reward or the successive trials.
     #       The cost function has to be average for a reason that you should describe in the report.
     #       Warning with the sign.
-    cost = 0
+    cost = sum(list_of_accumulated_rewards)
+    cost /= float(len(list_of_accumulated_rewards))
     # -----------
     return cost
 
@@ -111,7 +113,7 @@ def cost_function(parameter):
 #       Test how the performance of each algorithm depends on the initialization of the coding string.
 #       Set a for loop and run 100 optimization start from different initial coding string taken uniformly within the bounds
 #
-solver = AnnealSolver(noisy_step=1, temp_decay=.99, n_iteration=10)  # Load the solver object
+solver = AnnealSolver(noisy_step=2.5, temp_decay=.94, n_iteration=100)  # Load the solver object
 s0 = np.zeros(n_state)
 res = solver.solve(s0, cost_function, bound)
 
