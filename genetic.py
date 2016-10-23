@@ -53,10 +53,11 @@ class GeneticSolver:
         #   The probability to have one or more coefficient that mutes is self.mutation_rate for each parameter in pop
         #   (Tip: try to use numpy built-in function and avoid for loops to save computation time)
         #
-        if rd.uniform() < self.mutation_rate:
-            pop[0] = rd.uniform(bound[0], bound[1])
-        if rd.uniform() < self.mutation_rate:
-            pop[1] = rd.uniform(bound[0], bound[1])
+        for p in pop:
+          if rd.uniform() < self.mutation_rate:
+              p[0] = rd.uniform(bound[0], bound[1])
+          if rd.uniform() < self.mutation_rate:
+              p[1] = rd.uniform(bound[0], bound[1])
         # -----------------------
 
         return pop
@@ -84,14 +85,17 @@ class GeneticSolver:
             for j, i_2 in enumerate(src2):
                 if rd.uniform() < self.reproduction_rate:
                     r = rd.uniform()
+                    new_pop = []
+                    for i in range(i_1.size):
+                      param = r * i_1[i] + (1-r) * i_2[i]
+                      new_pop.append(param)
+                    pop[i] = new_pop
 
-                    x_1 = r * i_1[0] + (1-r) * i_2[0]
-                    y_1 = r * i_1[1] + (1-r) * i_2[1]
-                    pop[i] = [x_1, y_1]
-
-                    x_2 = (1-r) * i_1[0] + r * i_2[0]
-                    y_2 = (1-r) * i_1[1] + r * i_2[1]
-                    pop[j] = [x_2, y_2]
+                    new_pop = []
+                    for i in range(i_1.size):
+                      param = (1-r) * i_1[i] + r * i_2[i]
+                      new_pop.append(param)
+                    pop[j] = new_pop
         # -----------------------
 
         return pop
