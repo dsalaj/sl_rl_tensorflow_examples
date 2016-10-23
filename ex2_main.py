@@ -93,8 +93,9 @@ def cost_function(parameter):
     #       Define the cost function as a function of the accumulated reward or the successive trials.
     #       The cost function has to be average for a reason that you should describe in the report.
     #       Warning with the sign.
-    cost = sum(list_of_accumulated_rewards)
-    cost /= float(len(list_of_accumulated_rewards))
+    fitness = sum(list_of_accumulated_rewards)
+    fitness /= float(len(list_of_accumulated_rewards))
+    cost = (200 - fitness)**2
     # -----------
     return cost
 
