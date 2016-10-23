@@ -72,10 +72,9 @@ class AnnealSolver:
             #
             step = self.noisy_step
             x_new = x
-            x_new[0] = x[0] + rd.uniform(-step, step)
-            x_new[1] = x[1] + rd.uniform(-step, step)
-            x_new[0] = max(min(x_new[0], bound[1]), bound[0])
-            x_new[1] = max(min(x_new[1], bound[1]), bound[0])
+            for i in range(x.size):
+                x_new[i] = x[i] + rd.uniform(-step, step)
+                x_new[i] = max(min(x_new[i], bound[1]), bound[0])
             T *= self.temp_decay
             #-----------------------
 

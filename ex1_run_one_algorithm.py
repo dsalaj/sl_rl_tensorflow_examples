@@ -42,18 +42,18 @@ fun, bound = get_cost_function(cost_name)
 # Change the solver name to try other algorithms. Warning because genetic algorithm take a population of inital strings
 # and not a single one
 
-# solver = AnnealSolver(noisy_step=.1, temp_decay=.99, n_iteration=1000) # Load the solver object
-# s0 = rd.rand(2) * (bound[1] - bound[0]) + bound[0]  # Define the first coding string candidate randomly
-# res = solver.solve(s0, fun, bound)  # Solve the problem
+solver = AnnealSolver(noisy_step=1, temp_decay=.9, n_iteration=1000) # Load the solver object
+s0 = rd.rand(2) * (bound[1] - bound[0]) + bound[0]  # Define the first coding string candidate randomly
+res = solver.solve(s0, fun, bound)  # Solve the problem
 
 # solver = GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.97, n_random_step=9, n_iteration=100)
 # s0 = rd.rand(2) * (bound[1] - bound[0]) + bound[0]  # Define the first coding string candidate randomly
 # res = solver.solve(s0, fun, bound)  # Solve the problem
 
-n_pop = 20
-solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50)
-pop0 = [rd.rand(2) * (bound[1] - bound[0]) + bound[0] for k in range(n_pop)]
-res = solver.solve(pop0, fun, bound)  # Solve the problem
+# n_pop = 20
+# solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50)
+# pop0 = [rd.rand(2) * (bound[1] - bound[0]) + bound[0] for k in range(n_pop)]
+# res = solver.solve(pop0, fun, bound)  # Solve the problem
 
 # Plot the cost function along iterations
 fig = plt.figure()
