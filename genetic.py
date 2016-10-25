@@ -124,22 +124,18 @@ class GeneticSolver:
         #
         new_pop = []
         new_f_pop = []
-        exp_sum = np.sum([np.exp(f/self.selection_temperature) for f in f_pop])
+        softmax_pop = np.zeros(f_pop.shape)
+
+        exp_sum = np.sum([np.exp(-f/self.selection_temperature) for f in f_pop])
         for i, ind in enumerate(pop):
-            p = np.exp(f_pop[i]/self.selection_temperature) / exp_sum
-            # FIXME: should be <, but probabilities too small?
-            # FIXME: probably in combination with sign (see WARNING)
-            if rd.uniform() > p:
-                new_pop.append(ind)
-                new_f_pop.append(f_pop[i])
+            softmax = np.exp(-f_pop[i]/self.selection_temperature) / exp_sum
+            softmax_pop[i] = softmax
 
-        if len(new_pop) < pop.size:
-            new_pop = np.array(new_pop)
-            missing = pop.shape[0] - new_pop.shape[0]
-            duplicate_list = [1 for i in range(new_pop.shape[0] - 1)]
-            duplicate_list.append(missing+1)
-            new_pop = np.repeat(new_pop, duplicate_list, axis=0)
+        new_pop_indices = rd.choice(a=[i for i in range(pop.shape[0])], size=pop.shape[0], p=softmax_pop)
+        new_pop = np.array([pop[i] for i in new_pop_indices])
+        new_f_pop = np.array([f_pop[i] for i in new_pop_indices])
 
+        new_pop = np.array(new_pop)
         new_f_pop = np.array(new_f_pop)
 
         pop = new_pop
