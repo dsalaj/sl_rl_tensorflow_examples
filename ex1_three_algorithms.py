@@ -24,8 +24,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 # Choose the function to minimize by comment the others
 # cost_name = 'rastrigin'
-cost_name = 'rosenbrock'
-# cost_name = 'ackley'
+# cost_name = 'rosenbrock'
+cost_name = 'ackley'
 # cost_name = 'chasm'
 
 fun, bound = get_cost_function(cost_name)
@@ -36,7 +36,7 @@ s0 = rd.rand(2) * (bound[1] - bound[0]) + bound[0]  # Define the first solution 
 res_anneal = solver.solve(s0, fun, bound)  # Solve the problem
 
 # Solve with: Gradient Descent
-solver = GDFDSolver(learning_rate=1, exploration_step=1, step_decay= .9, n_random_step=9, n_iteration=100)
+solver = GDFDSolver(learning_rate=0.5, exploration_step=1.5, step_decay=.99, n_random_step=19, n_iteration=50)
 res_gd = solver.solve(s0, fun, bound)  # Solve the problem
 
 # Solve with: Genetic algorithm

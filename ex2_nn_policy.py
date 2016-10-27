@@ -62,7 +62,13 @@ def policy(parameter, state):
     #  Question 2.e):
     #       Add one hidden layer. The details are explained in the hand-out.
     #
-    return int(np.dot(parameter, state) > 0)
+
+    W1 = parameter.reshape((1,4))
+    W1 = np.tile(W1, (4,1))
+    a = np.dot(W1, state)
+    y = np.tanh(a)
+
+    return int(np.dot(parameter, y) > 0)
 
 
 def cost_function(parameter):

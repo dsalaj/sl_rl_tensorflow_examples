@@ -117,7 +117,7 @@ def cost_function(parameter):
 #       Set a for loop and run 100 optimization start from different initial coding string taken uniformly within the bounds
 #
 
-n_random_intilization = 10
+n_random_intilization = 100
 
 solver = AnnealSolver(noisy_step=2.5, temp_decay=.94, n_iteration=100, stop_criterion=0)  # Load the solver object
 list_score_anneal = []

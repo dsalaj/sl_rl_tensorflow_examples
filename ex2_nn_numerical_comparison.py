@@ -62,7 +62,13 @@ def policy(parameter, state):
     #  Question 2.e):
     #       Add one hidden layer. The details are explained in the hand-out.
     #
-    return int(np.dot(parameter, state) > 0)
+
+    W1 = parameter.reshape((1,4))
+    W1 = np.tile(W1, (4,1))
+    a = np.dot(W1, state)
+    y = np.tanh(a)
+
+    return int(np.dot(parameter, y) > 0)
 
 
 def cost_function(parameter):
@@ -117,26 +123,41 @@ def cost_function(parameter):
 #       Set a for loop and run 100 optimization start from different initial coding string taken uniformly within the bounds
 #
 
+n_random_intilization = 100
 
 solver = AnnealSolver(noisy_step=2.5, temp_decay=.94, n_iteration=100, stop_criterion=0)  # Load the solver object
-s0 = np.zeros(n_state)
-res = solver.solve(s0, cost_function, bound)
+list_score_anneal = []
+for i in range(n_random_intilization):
+    s0 = rd.rand(n_state) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate ramdomly
+    res_anneal = solver.solve(s0, cost_function, bound)
+    if res_anneal['f_list'][-1] == 0:
+        list_score_anneal.append(res_anneal['n_function_call'])
 
-# solver = GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.97, n_random_step=9, n_iteration=100, stop_criterion=50)
-# s0 = np.zeros(n_state)
-# res = solver.solve(s0, cost_function, bound)
+solver = GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.99, n_random_step=9, n_iteration=100, stop_criterion=0)
+list_score_gd = []
+for i in range(n_random_intilization):
+    s0 = rd.rand(n_state) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate randomly
+    res_gd = solver.solve(s0, cost_function, bound)  # Solve the problem
+    if res_gd['f_list'][-1] == 0:
+        list_score_gd.append(res_gd['n_function_call'])
 
-# n_pop = 20
-# solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50, stop_criterion=0)
-# pop0 = [rd.rand(n_state) for k in range(n_pop)]
-# res = solver.solve(pop0, cost_function, bound)
+n_pop = 20
+solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50, stop_criterion=0)
+list_score_genetic = []
+for k in range(n_random_intilization):
+    pop0 = [rd.rand(n_state) * (bound[1] - bound[0]) + bound[0] for k in range(n_pop)]
+    res_genetic = solver.solve(pop0, cost_function, bound)  # Solve the problem
+    if res_genetic['f_list'][-1] == 0:
+        list_score_genetic.append(res_genetic['n_function_call'])
 
-n_trials = res['n_function_call'] * n_trial_per_call
-print('\t Final cost {:.3g} \t in {} trials.'.format(res['f_list'][-1], n_trials))
-# -----------
+##############################
+# Nothing to be modified below
+##############################
 
-fig, ax = plt.subplots(1)
-ax.plot(res['f_list'], lw=2)
-ax.set_ylabel('Cost functions')
-ax.set_xlabel('Optimization iterations')
-plt.show()
+print('\n FINAL STATISTICS:')
+for name, list_score in zip(['Annealing','Gradient','Genetic'],[list_score_anneal,list_score_gd,list_score_genetic]):
+
+    mean = np.mean(list_score)
+    std = np.std(list_score)
+
+    print('{} \t Averaged number of function calls {:.3g} \t Standard dev. {:.3g}'.format(name,mean,std))
