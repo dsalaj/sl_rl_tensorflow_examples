@@ -95,7 +95,7 @@ class GDFDSolver:
                 function_call += 1
 
             A = np.zeros(dx.shape)
-            A[:] = dx[:] - x
+            A[:] = dx[:]
             df = np.zeros(f_.shape)
             df[:] = f_[:] - f
             g = np.zeros(x.shape) # Replace me but the size should match

@@ -42,7 +42,7 @@ for i in range(n_random_intilization):
     list_score_anneal.append(res_anneal['f_list'][-1])
 
 # Solve with: Gradient Descent
-solver = GDFDSolver(learning_rate=1, exploration_step=1, step_decay= .9, n_random_step=9, n_iteration=100)
+solver = GDFDSolver(learning_rate=.2, exploration_step=0.8, step_decay=.9, n_random_step=9, n_iteration=100)
 
 list_score_gd = []
 for i in range(n_random_intilization):
