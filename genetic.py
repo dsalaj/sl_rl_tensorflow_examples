@@ -86,14 +86,14 @@ class GeneticSolver:
                 if rd.uniform() < self.reproduction_rate:
                     r = rd.uniform()
                     new_pop = []
-                    for i in range(i_1.size):
-                      param = r * i_1[i] + (1-r) * i_2[i]
+                    for x in range(i_1.size):
+                      param = r * i_1[x] + (1-r) * i_2[x]
                       new_pop.append(param)
                     pop[i] = new_pop
 
                     new_pop = []
-                    for i in range(i_1.size):
-                      param = (1-r) * i_1[i] + r * i_2[i]
+                    for x in range(i_1.size):
+                      param = (1-r) * i_1[x] + r * i_2[x]
                       new_pop.append(param)
                     pop[j] = new_pop
         # -----------------------

@@ -63,12 +63,12 @@ def policy(parameter, state):
     #       Add one hidden layer. The details are explained in the hand-out.
     #
 
-    W1 = parameter.reshape((1,4))
-    W1 = np.tile(W1, (4,1))
+    W1 = parameter[0:40].reshape((10,4))
+    W2 = parameter[40:50]
     a = np.dot(W1, state)
     y = np.tanh(a)
 
-    return int(np.dot(parameter, y) > 0)
+    return int(np.dot(W2, y) > 0)
 
 
 def cost_function(parameter):
@@ -124,18 +124,18 @@ def cost_function(parameter):
 #
 
 
-solver = AnnealSolver(noisy_step=2.5, temp_decay=.94, n_iteration=100, stop_criterion=0)  # Load the solver object
-s0 = np.zeros(n_state)
-res = solver.solve(s0, cost_function, bound)
-
-# solver = GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.97, n_random_step=9, n_iteration=100, stop_criterion=50)
-# s0 = np.zeros(n_state)
+# solver = AnnealSolver(noisy_step=2.5, temp_decay=.94, n_iteration=100, stop_criterion=0)  # Load the solver object
+# s0 = np.zeros(n_state*10 + 10)
 # res = solver.solve(s0, cost_function, bound)
 
-# n_pop = 20
-# solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50, stop_criterion=0)
-# pop0 = [rd.rand(n_state) for k in range(n_pop)]
-# res = solver.solve(pop0, cost_function, bound)
+# solver = GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.97, n_random_step=9, n_iteration=100, stop_criterion=50)
+# s0 = np.zeros(n_state*10 + 10)
+# res = solver.solve(s0, cost_function, bound)
+
+n_pop = 20
+solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50, stop_criterion=0)
+pop0 = [rd.rand(n_state*10 + 10) for k in range(n_pop)]
+res = solver.solve(pop0, cost_function, bound)
 
 n_trials = res['n_function_call'] * n_trial_per_call
 print('\t Final cost {:.3g} \t in {} trials.'.format(res['f_list'][-1], n_trials))

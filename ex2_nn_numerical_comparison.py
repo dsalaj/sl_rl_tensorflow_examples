@@ -63,12 +63,12 @@ def policy(parameter, state):
     #       Add one hidden layer. The details are explained in the hand-out.
     #
 
-    W1 = parameter.reshape((1,4))
-    W1 = np.tile(W1, (4,1))
+    W1 = parameter[0:40].reshape((10,4))
+    W2 = parameter[40:50]
     a = np.dot(W1, state)
     y = np.tanh(a)
 
-    return int(np.dot(parameter, y) > 0)
+    return int(np.dot(W2, y) > 0)
 
 
 def cost_function(parameter):
@@ -128,7 +128,7 @@ n_random_intilization = 100
 solver = AnnealSolver(noisy_step=2.5, temp_decay=.94, n_iteration=100, stop_criterion=0)  # Load the solver object
 list_score_anneal = []
 for i in range(n_random_intilization):
-    s0 = rd.rand(n_state) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate ramdomly
+    s0 = rd.rand(n_state*10 + 10) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate ramdomly
     res_anneal = solver.solve(s0, cost_function, bound)
     if res_anneal['f_list'][-1] == 0:
         list_score_anneal.append(res_anneal['n_function_call'])
@@ -136,7 +136,7 @@ for i in range(n_random_intilization):
 solver = GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.99, n_random_step=9, n_iteration=100, stop_criterion=0)
 list_score_gd = []
 for i in range(n_random_intilization):
-    s0 = rd.rand(n_state) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate randomly
+    s0 = rd.rand(n_state*10 + 10) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate randomly
     res_gd = solver.solve(s0, cost_function, bound)  # Solve the problem
     if res_gd['f_list'][-1] == 0:
         list_score_gd.append(res_gd['n_function_call'])
@@ -145,7 +145,7 @@ n_pop = 20
 solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50, stop_criterion=0)
 list_score_genetic = []
 for k in range(n_random_intilization):
-    pop0 = [rd.rand(n_state) * (bound[1] - bound[0]) + bound[0] for k in range(n_pop)]
+    pop0 = [rd.rand(n_state*10 + 10) * (bound[1] - bound[0]) + bound[0] for k in range(n_pop)]
     res_genetic = solver.solve(pop0, cost_function, bound)  # Solve the problem
     if res_genetic['f_list'][-1] == 0:
         list_score_genetic.append(res_genetic['n_function_call'])
