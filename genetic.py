@@ -81,21 +81,20 @@ class GeneticSolver:
         #
         src1 = pop.copy()
         src2 = pop.copy()
-        for i, i_1 in enumerate(src1):
-            for j, i_2 in enumerate(src2):
-                if rd.uniform() < self.reproduction_rate:
-                    r = rd.uniform()
-                    new_pop = []
-                    for x in range(i_1.size):
-                      param = r * i_1[x] + (1-r) * i_2[x]
-                      new_pop.append(param)
-                    pop[i] = new_pop
+        num_crossover = int(self.reproduction_rate * pop.shape[0])
+        src1_indices = rd.choice(a=[i for i in range(pop.shape[0])], size=num_crossover)
+        src2_indices = rd.choice(a=[i for i in range(pop.shape[0]) if i not in src1_indices], size=num_crossover)
+        for i in src1_indices:
+            for j in src2_indices:
+                r = rd.uniform()
 
-                    new_pop = []
-                    for x in range(i_1.size):
-                      param = (1-r) * i_1[x] + r * i_2[x]
-                      new_pop.append(param)
-                    pop[j] = new_pop
+                new_pop = np.zeros(pop.shape[1])
+                new_pop[:] = r * src1[i][:] + (1-r) * src2[j][:]
+                pop[i] = new_pop
+
+                new_pop = np.zeros(pop.shape[1])
+                new_pop[:] = (1-r) * src1[i][:] + r * src2[j][:]
+                pop[j] = new_pop
         # -----------------------
 
         return pop
@@ -127,9 +126,7 @@ class GeneticSolver:
         softmax_pop = np.zeros(f_pop.shape)
 
         exp_sum = np.sum([np.exp(-f/self.selection_temperature) for f in f_pop])
-        for i, ind in enumerate(pop):
-            softmax = np.exp(-f_pop[i]/self.selection_temperature) / exp_sum
-            softmax_pop[i] = softmax
+        softmax_pop[:] = np.exp(-f_pop[:]/self.selection_temperature) / exp_sum
 
         new_pop_indices = rd.choice(a=[i for i in range(pop.shape[0])], size=pop.shape[0], p=softmax_pop)
         new_pop = np.array([pop[i] for i in new_pop_indices])
