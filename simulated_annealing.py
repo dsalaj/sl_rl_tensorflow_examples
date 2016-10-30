@@ -71,10 +71,14 @@ class AnnealSolver:
             #   - Make sure to stay in the solution space by clipping x into the bounds: bound = [x_min,x_max]
             #
             step = self.noisy_step
-            x_new = x
-            for i in range(x.size):
-                x_new[i] = x[i] + rd.uniform(-step, step)
-                x_new[i] = max(min(x_new[i], bound[1]), bound[0])
+            x_new = np.zeros(x.shape)
+            random_step = np.array([rd.uniform(-step, step) for i in range(x.size)])
+            x_new[:] = x[:] + random_step[:]
+            bound_0 = np.zeros(x.shape)
+            bound_0.fill(bound[0])
+            bound_1 = np.zeros(x.shape)
+            bound_1.fill(bound[1])
+            x_new = np.maximum(np.minimum(x_new, bound_1), bound_0)
             T *= self.temp_decay
             #-----------------------
 
@@ -104,8 +108,8 @@ class AnnealSolver:
 
         # Get the time of computation for comparison with other algorithms
         t = time() - t0
-        print('Simulated Annealing: \n\t f={:.3g} \t iteration: {} \t time: {:.3g} s \t function call: {}'\
-              .format(f, k, t, n_function_call))
+        # print('Simulated Annealing: \n\t f={:.3g} \t iteration: {} \t time: {:.3g} s \t function call: {}'\
+        #       .format(f, k, t, n_function_call))
 
         # Put all information useful for comparison with other algorithms in a dictionary
         result = {
