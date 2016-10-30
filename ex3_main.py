@@ -38,13 +38,35 @@ from genetic import GeneticSolver
 
 n_trial_per_call = 10  # Number of trials to estimate the expected accumulated reward at every optimization steps
 render = False
-render = True  # Run a video of the optimization, set to False TO SAVE COMPUTATION TIME
+# render = True  # Run a video of the optimization, set to False TO SAVE COMPUTATION TIME
 bound = [-3, 3]  # Bound of the policy parameters [-3,3] is a reasonable choice, no need to change it
 
 # Load the environment
 env = gym.make('MountainCar-v0')
 n_state = env.observation_space.high.__len__()  # The size of the state space is given by the environment
 
+
+# def policy(parameter, state):
+#     '''
+#     The policy is the function that determines the action based on the current observation of the environment.
+#     This depends on the policy parameters that you should optimize (i.e. the coding strings provided by genetic algorithms).
+#     For this assignment the policy is defined as a linear classifier:
+#      - if the scalar product parameter.state is positive: take action 1
+#      - otherwise take action 0
+#
+#     :param parameter:
+#     :param state:
+#     :return:
+#     '''
+#
+#     W1 = parameter[0:2].reshape((1,2))
+#     W2 = parameter[2:5].reshape((3,1))
+#     a = np.dot(W1, state)
+#     y = np.tanh(a)
+#     out = np.dot(W2, y).reshape((3,))
+#     res = out.argmax()
+#
+#     return res
 
 def policy(parameter, state):
     '''
@@ -58,13 +80,10 @@ def policy(parameter, state):
     :param state:
     :return:
     '''
-
-    W1 = parameter[0:2].reshape((1,2))
-    W2 = parameter[2:5].reshape((3,1))
-    a = np.dot(W1, state)
-    y = np.tanh(a)
-    out = np.dot(W2, y).reshape((3,))
-    res = out.argmax()
+    #print state
+    #W1 = parameter.reshape((-1,parameter.shape[0]/3))
+    res = int(np.dot(parameter,state) > 0)
+    if res == 1 : res = 2
 
     return res
 
@@ -83,35 +102,53 @@ def cost_function(parameter):
     for ep in range(n_trial_per_call):
         observation = env.reset()
         acc_reward = 0
+        last_action = 0
+        min_x = observation[0]
+        max_x = observation[0]
         for t in range(200):  # The number of time steps in this game is maximum 200
             if render: env.render()
+            #observation = np.concatenate((observation, [last_action - 1]))
+            #print observation
             action = policy(parameter, observation)  # Choose an action according to the policy
+            #print action
+            last_action = action
+            #print observation
             observation, reward, done, info = env.step(action)  # Move the CartPole
-            acc_reward += reward  # Accumulate the reward
+            if(observation[0] <= min_x):
+                min_x = observation[0]
+            else:
+                max_x = observation[0]
+            #acc_reward += reward  # Accumulate the reward
             if done:
                 # If the pole falls, we loose.
                 break
+        acc_reward = np.abs(min_x-max_x)
         list_of_accumulated_rewards.append(acc_reward)
 
     fitness = sum(list_of_accumulated_rewards)
     fitness /= float(len(list_of_accumulated_rewards))
-    cost = (200 - fitness)**2
+    print fitness
+    opt_points = np.max([1, fitness])
+    cost = (opt_points - fitness)**2
 
     return cost
 
 
-# solver = AnnealSolver(noisy_step=1.5, temp_decay=.99, n_iteration=100, stop_criterion=0)  # Load the solver object
-# s0 = np.zeros(5)
+solver = AnnealSolver(noisy_step=1.5, temp_decay=.99, n_iteration=100, stop_criterion=0)  # Load the solver object
+#s0 = np.asarray([-2.58080242, -2.47749191])
+s0 = np.zeros(n_state)
+res = solver.solve(s0, cost_function, bound)
+
+# solver = GDFDSolver(learning_rate=1, exploration_step=1, step_decay= .9, n_random_step=9, n_iteration=100)
+#     #GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.97, n_random_step=9, n_iteration=100, stop_criterion=50)
+# s0 = np.zeros(n_state)
+# #s0 = np.asarray([-3., 3.])
 # res = solver.solve(s0, cost_function, bound)
 
-# solver = GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.97, n_random_step=9, n_iteration=100, stop_criterion=50)
-# s0 = np.zeros(5)
-# res = solver.solve(s0, cost_function, bound)
-
-n_pop = 20
-solver = GeneticSolver(selection_temperature=1, mutation_rate=.13, crossover_rate=.13, n_iteration=50, stop_criterion=0)
-pop0 = [rd.rand(5) for k in range(n_pop)]
-res = solver.solve(pop0, cost_function, bound)
+# n_pop = 20
+# solver = GeneticSolver(selection_temperature=1, mutation_rate=.13, crossover_rate=.13, n_iteration=50, stop_criterion=0)
+# pop0 = [rd.rand(5) for k in range(n_pop)]
+# res = solver.solve(pop0, cost_function, bound)
 
 n_trials = res['n_function_call'] * n_trial_per_call
 print('\t Final cost {:.3g} \t in {} trials.'.format(res['f_list'][-1], n_trials))
