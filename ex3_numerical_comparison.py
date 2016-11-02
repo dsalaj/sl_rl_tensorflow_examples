@@ -46,27 +46,6 @@ env = gym.make('MountainCar-v0')
 n_state = env.observation_space.high.__len__()  # The size of the state space is given by the environment
 
 
-# def policy(parameter, state):
-#     '''
-#     The policy is the function that determines the action based on the current observation of the environment.
-#     This depends on the policy parameters that you should optimize (i.e. the coding strings provided by genetic algorithms).
-#     For this assignment the policy is defined as a linear classifier:
-#      - if the scalar product parameter.state is positive: take action 1
-#      - otherwise take action 0
-#
-#     :param parameter:
-#     :param state:
-#     :return:
-#     '''
-#
-#     W1 = parameter[0:2].reshape((1,2))
-#     W2 = parameter[2:5].reshape((3,1))
-#     a = np.dot(W1, state)
-#     y = np.tanh(a)
-#     out = np.dot(W2, y).reshape((3,))
-#     res = out.argmax()
-#
-#     return res
 
 
 #Policy without hidden layer
@@ -111,7 +90,6 @@ def policy(parameter, state):
     return res
 
 
-
 def cost_function(parameter):
     '''
     Fitness function to maximize.
@@ -144,12 +122,12 @@ def cost_function(parameter):
                 break
         if steps_reward > -200:
             # give bonus reward for completion
-            #acc_reward = 2
+            acc_reward = 2
             # count success for succession rate
             succ_counter += 1
         # We measure the score by the distance covered in
         # simulation
-        acc_reward = np.abs(min_x-max_x)
+        acc_reward += np.abs(min_x-max_x)
         #print acc_reward
         list_of_accumulated_rewards.append(acc_reward)
 
@@ -164,28 +142,44 @@ def cost_function(parameter):
     return cost
 
 
-# solver = AnnealSolver(noisy_step=1.5, temp_decay=.99, n_iteration=100, stop_criterion=0)  # Load the solver object
-# s0 = rd.rand(n_state*3 + 3)
-# res = solver.solve(s0, cost_function, bound)
+n_random_intilization = 100
 #
-# solver = GDFDSolver(learning_rate=1, exploration_step=1, step_decay= .9, n_random_step=9, n_iteration=100)
-# s0 = np.zeros(n_state*3 + 3)
-# res = solver.solve(s0, cost_function, bound)
+# solver = AnnealSolver(noisy_step=2.5, temp_decay=.94, n_iteration=100, stop_criterion=0)  # Load the solver object
+# list_score_anneal = []
+# for i in range(n_random_intilization):
+#     s0 = rd.rand(n_state) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate ramdomly
+#     res_anneal = solver.solve(s0, cost_function, bound)
+#     if res_anneal['f_list'][-1] == 0:
+#         list_score_anneal.append(res_anneal['n_function_call'])
+#
+# solver = GDFDSolver(learning_rate=.07, exploration_step=.8, step_decay=.99, n_random_step=9, n_iteration=100, stop_criterion=0)
+# list_score_gd = []
+# for i in range(n_random_intilization):
+#     s0 = rd.rand(n_state) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate randomly
+#     res_gd = solver.solve(s0, cost_function, bound)  # Solve the problem
+#     if res_gd['f_list'][-1] == 0:
+#         list_score_gd.append(res_gd['n_function_call'])
 
 n_pop = 20
-solver = GeneticSolver(selection_temperature=1, mutation_rate=.13, crossover_rate=.13, n_iteration=50, stop_criterion=0)
-pop0 = [rd.rand(n_state*3 + 3) for k in range(n_pop)]
-res = solver.solve(pop0, cost_function, bound)
+solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50, stop_criterion=0)
+list_score_genetic = []
+for k in range(n_random_intilization):
+    pop0 = [rd.rand(n_state) * (bound[1] - bound[0]) + bound[0] for k in range(n_pop)]
+    res_genetic = solver.solve(pop0, cost_function, bound)  # Solve the problem
+    if res_genetic['f_list'][-1] == 0:
+        list_score_genetic.append(res_genetic['n_function_call'])
 
-n_trials = res['n_function_call'] * n_trial_per_call
-print('\t Final cost {:.3g} \t in {} trials.'.format(res['f_list'][-1], n_trials))
-# -----------
+##############################
+# Nothing to be modified below
+##############################
 
-fig, ax = plt.subplots(1)
-ax.plot(res['f_list'], lw=2)
-ax.set_ylabel('Cost functions')
-ax.set_xlabel('Optimization iterations')
-plt.show()
+print('\n FINAL STATISTICS:')
+for name, list_score in zip(['Genetic'],[list_score_genetic]):
+
+    mean = np.mean(list_score)
+    std = np.std(list_score)
+
+    print('{} \t Averaged number of function calls {:.3g} \t Standard dev. {:.3g}'.format(name,mean,std))
 
 
 # s0 = np.asarray([
