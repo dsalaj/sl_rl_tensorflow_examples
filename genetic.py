@@ -189,8 +189,8 @@ class GeneticSolver:
                 break
 
         t = time() - t0
-        # print('Genetic algorithm: \n\t f={:.3g} \t iteration: {} \t time: {:.3g} s \t function call: {}'.format(
-        #     f_list[-1], k, t, function_call))
+        print('Genetic algorithm: \n\t f={:.3g} \t iteration: {} \t time: {:.3g} s \t function call: {}'.format(
+            f_list[-1], k, t, function_call))
         result = {
             'x_list': x_list,
             'f_list': f_list,

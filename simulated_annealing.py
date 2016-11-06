@@ -108,8 +108,8 @@ class AnnealSolver:
 
         # Get the time of computation for comparison with other algorithms
         t = time() - t0
-        # print('Simulated Annealing: \n\t f={:.3g} \t iteration: {} \t time: {:.3g} s \t function call: {}'\
-        #       .format(f, k, t, n_function_call))
+        print('Simulated Annealing: \n\t f={:.3g} \t iteration: {} \t time: {:.3g} s \t function call: {}'\
+              .format(f, k, t, n_function_call))
 
         # Put all information useful for comparison with other algorithms in a dictionary
         result = {

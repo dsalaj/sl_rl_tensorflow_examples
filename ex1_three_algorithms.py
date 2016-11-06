@@ -23,25 +23,25 @@ from genetic import GeneticSolver
 from mpl_toolkits.mplot3d import Axes3D
 
 # Choose the function to minimize by comment the others
-# cost_name = 'rastrigin'
+cost_name = 'rastrigin'
 # cost_name = 'rosenbrock'
-cost_name = 'ackley'
+# cost_name = 'ackley'
 # cost_name = 'chasm'
 
 fun, bound = get_cost_function(cost_name)
 
 # Solve with: Simulated Annealing
-solver = AnnealSolver(noisy_step=1, temp_decay=.99, n_iteration=1000)  # Load the solver object
+solver = AnnealSolver(noisy_step=1, temp_decay=.9, n_iteration=1000)  # Load the solver object
 s0 = rd.rand(2) * (bound[1] - bound[0]) + bound[0]  # Define the first solution candidate ramdomly
 res_anneal = solver.solve(s0, fun, bound)  # Solve the problem
 
 # Solve with: Gradient Descent
-solver = GDFDSolver(learning_rate=0.5, exploration_step=1.5, step_decay=.99, n_random_step=19, n_iteration=50)
+solver = GDFDSolver(learning_rate=0.2, exploration_step=0.8, step_decay=.9, n_random_step=9, n_iteration=100)
 res_gd = solver.solve(s0, fun, bound)  # Solve the problem
 
 # Solve with: Genetic algorithm
 n_pop = 20
-solver = GeneticSolver(selection_temperature=1, mutation_rate=.03, crossover_rate=.03, n_iteration=50)
+solver = GeneticSolver(selection_temperature=1, mutation_rate=.09, crossover_rate=.09, n_iteration=50)
 pop0 = [rd.rand(2) * (bound[1] - bound[0]) + bound[0] for k in range(n_pop)]
 res_genetic = solver.solve(pop0, fun, bound)  # Solve the problem
 
