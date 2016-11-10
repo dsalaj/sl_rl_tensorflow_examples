@@ -34,7 +34,7 @@ trial_duration = 100
 
 
 # Generate the environment
-env = FrozenLakeEnv(map_name='4x4',is_slippery=False)
+env = FrozenLakeEnv(map_name='4x4', is_slippery=False)
 n_state = env.observation_space.n
 n_action = env.action_space.n
 
@@ -56,9 +56,19 @@ def policy(Q_table, state, epsilon):
     #       find the actions that maximizes Q(s,a)
     #       return randomly one of them
 
-    action = rd.randint(low=0, high=n_action)
+    if rd.uniform() < epsilon:
+        a = rd.randint(low=0, high=n_action)
+    else:
+        best_r = 0
+        best_a = rd.randint(low=0, high=n_action)
+        for a_test in range(0, n_action):
+            r = Q_table[state, a_test]
+            if r > best_r:
+                best_r = r
+                best_a = a_test
+        a = best_a
 
-    return action
+    return a
 
 def update_Q_table(Q_table, state, action, reward, new_state, new_action, is_done):
     '''
@@ -76,6 +86,14 @@ def update_Q_table(Q_table, state, action, reward, new_state, new_action, is_don
 
     # TODO: Implement the update of the Q table required in the SARSA algorithm
     # WARNING: If the trial stops, make sure to set 0 as the estimation of all future return
+    d = (reward + gamma * Q_table[new_state, new_action] - Q_table[state, action])
+    e = np.zeros(Q_table.shape)
+    e[state, action] += 1
+    for s in range(Q_table.shape[0]):
+        for a in range(Q_table.shape[1]):
+            Q_table[s, a] += learning_rate * e[s, a] * d
+            e[s, a] *= gamma * 0.5
+
 
 reward_list = []
 for k in range(N_trial + N_trial_test):
@@ -98,8 +116,9 @@ for k in range(N_trial + N_trial_test):
         #   Think about the final state the specific case just before getting the reward for the first time.
         #   The "goodness" of the rewarding state has to propagate to the previous one.
 
-        new_action = rd.randint(0,n_action)
         new_observation, reward, done, info = env.step(action)  # Take the action
+        new_action = policy(Q_table, observation, epsilon)
+        update_Q_table(Q_table, observation, action, reward, new_observation, new_action, done)
 
         #####################
 
