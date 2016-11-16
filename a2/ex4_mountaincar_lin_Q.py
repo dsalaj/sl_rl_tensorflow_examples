@@ -18,7 +18,7 @@ import gym
 import numpy as np
 import numpy.random as rd
 import matplotlib.pyplot as plt
-from gym.envs.classic_control.cartpole import CartPoleEnv
+from gym.envs.classic_control.mountain_car import MountainCarEnv
 from cartpole_utils import plot_results,print_results
 import tensorflow as tf
 
@@ -28,7 +28,6 @@ gamma = .9
 epsilon = 1.
 epsi_decay = .999
 lr_decay = .999
-n_hidden = 20
 
 # General parameters
 render = False
@@ -38,14 +37,12 @@ N_trial_test = 100
 trial_duration = 200
 
 # Generate the environment
-env = CartPoleEnv()
+env = MountainCarEnv()
 dim_state = env.observation_space.high.__len__()
 n_action = env.action_space.n
 
 # Initialize the parameters of the Q model
-wh0 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(dim_state), size=(dim_state, n_hidden)))
-bh0 = np.zeros(n_hidden, dtype=np.float32)
-w0 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(n_hidden), size=(n_hidden, n_action)))
+w0 = np.float32(rd.normal(loc=0.0, scale=1/np.sqrt(dim_state), size=(dim_state, n_action)))
 b0 = np.zeros(n_action, dtype=np.float32)
 
 # Generate the symbolic variables to hold the state values
@@ -55,20 +52,14 @@ next_state_holder = tf.placeholder(dtype=tf.float32, shape=(1, dim_state), name=
 # Create the parameters of the Q model
 w = tf.Variable(initial_value=w0, trainable=True, name='weight_variable')
 b = tf.Variable(initial_value=b0, trainable=True, name='bias')
-wh = tf.Variable(initial_value=wh0, trainable=True, name='hidden_weight_variable')
-bh = tf.Variable(initial_value=bh0, trainable=True, name='hidden_bias')
 
 # Q function at the current step
-a_y = tf.matmul(state_holder, wh, name='output_activation') + bh
-y = tf.nn.relu(a_y, name='hidden_layer_activation')
-a_z = tf.matmul(y, w, name='output_activation') + b
-Q = - tf.sigmoid(a_z, name='Q_model')
+a_z = tf.matmul(state_holder, w, name='output_activation') + b
+Q = tf.nn.softmax(a_z, name='Q_model')
 
 # Q function at the next step
-next_a_y = tf.matmul(next_state_holder, wh, name='next_step_output_activation') + bh
-next_y = tf.nn.relu(next_a_y, name='next_step_hidden_layer_activation')
-next_a_z = tf.matmul(next_y, w, name='next_step_output_activation') + b
-next_Q = - tf.nn.sigmoid(next_a_z, name='next_step_Q_model')
+next_a_z = tf.matmul(next_state_holder, w, name='next_step_output_activation') + b
+next_Q = tf.nn.softmax(next_a_z, name='next_step_Q_model')
 
 # Define symbolic variables that will carry information needed for training
 action_holder = tf.placeholder(dtype=tf.int32, name='symbolic_action')
@@ -78,9 +69,10 @@ is_done_holder = tf.placeholder(dtype=tf.float32, name='is_done')
 
 # define the role of each training step
 R = Q[0, action_holder]
-next_R = r_holder + gamma * next_Q[0, next_action_holder] * (1 - is_done_holder)
+next_R = r_holder + gamma * next_Q[0, next_action_holder] #* is_done_holder
 
 error = (R - next_R)**2
+
 
 # Define the operation that performs the optimization
 learning_rate_holder = tf.placeholder(dtype=tf.float32, name='symbolic_state')
@@ -106,7 +98,9 @@ def policy(state):
     Q_values = sess.run(Q, feed_dict={state_holder: state.reshape(1, dim_state)})
     val = np.max(Q_values[0, :])
     max_indices = np.where(Q_values[0, :] == val)[0]
-    return rd.choice(max_indices)
+
+    res = rd.choice(max_indices)
+    return res
 
 def predict(state):
 
@@ -114,7 +108,6 @@ def predict(state):
     val = np.max(Q_values[0, :])
     max_indices = np.where(Q_values[0, :] == val)[0]
     return rd.choice(max_indices)
-
 
 time_list = []
 reward_list = []
@@ -133,15 +126,16 @@ for k in range(N_trial + N_trial_test):
     acc_reward = 0  # Init the accumulated reward
     observation = env.reset()  # Init the state
     action = policy(observation)  # Init the first action
-
+    optimal_trial_len = 110
     trial_err_list = []
 
     for t in range(trial_duration):  # The number of time steps in this game is maximum 200
         if render: env.render()
 
         new_observation, reward, done, info = env.step(action)  # Take the action
-        reward = 0
-        if done and t < 199: reward = -1    # The reward is modified
+
+
+        if done and t < 199: reward = 0    # The reward is modified
 
         new_action = predict(new_observation)  # Compute the next action
 
@@ -166,7 +160,6 @@ for k in range(N_trial + N_trial_test):
 
         observation = new_observation  # Pass the new state to the next step
         action = new_action
-        # action = policy(observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
 
         # Add the error in a trial-specific list of errors
@@ -174,7 +167,8 @@ for k in range(N_trial + N_trial_test):
 
         if done:
             break  # Stop the trial when the environment says it is done
-
+    if t <= 110:
+        acc_reward = 0
     # Stack values for monitoring
     err_list.append(np.mean(trial_err_list))
     time_list.append(t + 1)
