@@ -25,7 +25,7 @@ from frozenlake_utils import plot_results
 
 # Algorithm parameters
 learning_rate = 0.5
-gamma = 1.
+gamma = 0.7
 epsilon = .01
 render = False
 N_trial = 10000

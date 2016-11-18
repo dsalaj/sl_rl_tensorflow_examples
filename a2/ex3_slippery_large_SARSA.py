@@ -24,9 +24,9 @@ from gym.envs.toy_text.frozen_lake import FrozenLakeEnv
 from frozenlake_utils import plot_results
 
 # Algorithm parameters
-learning_rate = 0.5
-gamma = 0.7
-epsilon = 0.1
+learning_rate = 0.1
+gamma = 1
+epsilon = .01
 render = False
 N_trial = 1000
 N_trial_test = 100
@@ -34,7 +34,7 @@ trial_duration = 100
 
 
 # Generate the environment
-env = FrozenLakeEnv(map_name='4x4', is_slippery=False)
+env = FrozenLakeEnv(map_name='8x8', is_slippery=True)
 n_state = env.observation_space.n
 n_action = env.action_space.n
 
@@ -58,13 +58,14 @@ def policy(Q_table, state, epsilon):
     #       return randomly one of them
 
     if rd.uniform() < epsilon:
-        return rd.randint(low=0, high=n_action)
+        a = rd.randint(low=0, high=n_action)
     else:
-        actions = np.argwhere(Q_table[state] == np.amax(Q_table[state])).flatten()
-        return rd.choice(actions)
+        max_actions = np.argwhere(Q_table[state] == np.amax(Q_table[state])).flatten()
+        a = rd.choice(max_actions)
+    return a
 
 
-def update_Q_table(Q_table, state, action, reward, new_state, is_done):
+def update_Q_table(Q_table, e, state, action, reward, new_state, new_action, is_done):
     '''
     Update the Q values according to the SARSA algorithm.
 
@@ -84,16 +85,27 @@ def update_Q_table(Q_table, state, action, reward, new_state, is_done):
         d = (reward - Q_table[state, action])
         # FIXME: new_state Q should be set to 0
     else:
-        d = (reward + gamma * np.max(Q_table[new_state, :]) - Q_table[state, action])
+        d = (reward + gamma * Q_table[new_state, new_action] - Q_table[state, action])
 
-    Q_table[state, action] += learning_rate * gamma * d
+    # reference: http://webdocs.cs.ualberta.ca/~sutton/book/ebook/node77.html
+    e[state, action] += 1
+    l = 0.5  # lambda
+
+    for s in range(Q_table.shape[0]):
+        for a in range(Q_table.shape[1]):
+            Q_table[s, a] += learning_rate * d * e[s, a]
+            e[s, a] *= gamma * l
 
 
 reward_list = []
 for k in range(N_trial + N_trial_test):
 
+    # Initialize the eligibility traces
+    e = np.zeros((n_state, n_action))
+
     acc_reward = 0  # Init the accumulated reward
     observation = env.reset()  # Init the state
+    action = policy(Q_table, observation, epsilon)  # Init the first action
 
     for t in range(trial_duration):  # The number of time steps in this game is maximum 200
         if render: env.render()
@@ -109,9 +121,17 @@ for k in range(N_trial + N_trial_test):
         #   Think about the final state the specific case just before getting the reward for the first time.
         #   The "goodness" of the rewarding state has to propagate to the previous one.
 
-        action = policy(Q_table, observation, epsilon)  # Init the first action
         new_observation, reward, done, info = env.step(action)  # Take the action
-        update_Q_table(Q_table, observation, action, reward, new_observation, done)
+        new_action = policy(Q_table, new_observation, epsilon)
+
+        if reward == 1 and done:
+            modified_reward = 100
+        elif reward == 0 and done:
+            modified_reward = -100
+        else:
+            modified_reward = -1
+
+        update_Q_table(Q_table, e, observation, action, modified_reward, new_observation, new_action, done)
 
         # DEBUG plots
         if reward > 0 and t > 5 and False:
@@ -133,6 +153,7 @@ for k in range(N_trial + N_trial_test):
         #####################
 
         observation = new_observation  # Pass the new state to the next step
+        action = new_action  # Pass the new action to the next step
         acc_reward += reward  # Accumulate the reward
         if done:
             break  # Stop the trial when you fall in a hole or when you find the goal

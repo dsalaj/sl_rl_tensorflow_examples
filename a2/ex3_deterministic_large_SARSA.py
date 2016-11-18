@@ -26,7 +26,7 @@ from frozenlake_utils import plot_results
 # Algorithm parameters
 learning_rate = 0.5
 gamma = .7
-epsilon = .01
+epsilon = .0
 render = False
 N_trial = 1000
 N_trial_test = 100
@@ -87,6 +87,7 @@ def update_Q_table(Q_table, e, state, action, reward, new_state, new_action, is_
     else:
         d = (reward + gamma * Q_table[new_state, new_action] - Q_table[state, action])
 
+    # reference: http://webdocs.cs.ualberta.ca/~sutton/book/ebook/node77.html
     e[state, action] += 1
     l = 0.5  # lambda
 
