@@ -33,7 +33,7 @@ n_hidden = 20
 # General parameters
 render = False
 N_print_every = 100
-N_trial = 1000
+N_trial = 2000
 N_trial_test = 100
 trial_duration = 200
 
@@ -165,8 +165,8 @@ for k in range(N_trial + N_trial_test):
             r_holder: reward})
 
         observation = new_observation  # Pass the new state to the next step
-        action = new_action
-        # action = policy(observation)  # Decide next action based on policy
+        # action = new_action
+        action = policy(observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
 
         # Add the error in a trial-specific list of errors
