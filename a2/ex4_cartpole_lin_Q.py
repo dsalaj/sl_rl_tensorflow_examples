@@ -155,7 +155,8 @@ for k in range(N_trial + N_trial_test):
             r_holder: reward})
 
         observation = new_observation  # Pass the new state to the next step
-        action = new_action  # Pass the new action to the next step
+        # action = new_action  # Pass the new action to the next step
+        action = policy(observation)
         acc_reward += reward  # Accumulate the reward
 
         # Add the error in a trial-specific list of errors
