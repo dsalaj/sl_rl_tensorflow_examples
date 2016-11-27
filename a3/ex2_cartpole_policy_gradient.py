@@ -61,12 +61,12 @@ with tf.name_scope('linear_policy'):
     # * Calculate the action probabilities as the softmax over the output (using tf.nn.softmax function)
     # * These action probabilities are used for selecting the actions during training (in the main loop)
 
-    theta0 = np.float32(rd.normal(loc=0.0, scale=1/np.sqrt(n_obs), size=(n_obs, n_actions)))
-    b0 = np.zeros(n_actions, dtype=np.float32)
-    theta = tf.Variable(initial_value=theta0, trainable=True, name='theta')
-    b = tf.Variable(initial_value=b0, trainable=True, name='bias')
-    # theta = tf.get_variable('theta', shape=(n_obs, n_actions), initializer=tf.random_normal_initializer())
-    # b = tf.get_variable('b', shape=n_actions, initializer=tf.constant_initializer(0.0))
+    # theta0 = np.float32(rd.normal(loc=0.0, scale=1/np.sqrt(n_obs), size=(n_obs, n_actions)))
+    # b0 = np.zeros(n_actions, dtype=np.float32)
+    # theta = tf.Variable(initial_value=theta0, trainable=True, name='theta')
+    # b = tf.Variable(initial_value=b0, trainable=True, name='bias')
+    theta = tf.get_variable('theta', shape=(n_obs, n_actions), initializer=tf.random_normal_initializer())
+    b = tf.get_variable('b', shape=n_actions, initializer=tf.constant_initializer(0.0))
 
     # action_probabilies: dim = traj-length x n_actions, softmax over the output. Used for action selection in the
     # training loop
@@ -94,7 +94,7 @@ with tf.name_scope('loss'):
     # * For each variable/operation/placeholder, remember to call the 'variable_summaries' function to enable recording
     #   of the the variable for tensorboard to visualize
 
-    chosen_action_prob = tf.matmul(actions_one_hot_holder, action_probabilities)
+    chosen_action_prob = tf.matmul(action_probabilities, tf.transpose(actions_one_hot_holder))
     # variable_summaries(chosen_action_prob, '/chosen_action_prob')
 
     # Call your final loss function L_theta (This is used below in the gradient descent step).
