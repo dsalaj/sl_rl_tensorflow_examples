@@ -36,6 +36,8 @@ n_test_trials = 100
 gamma = 0.9999
 learning_rate = 0.01
 
+n_hidden = 10
+
 constant_baseline = 1.
 
 # Use parameter_summaries and variable_summaries functions to record data for tensorboard
@@ -61,13 +63,18 @@ with tf.name_scope('linear_policy'):
     # * Calculate the action probabilities as the softmax over the output (using tf.nn.softmax function)
     # * These action probabilities are used for selecting the actions during training (in the main loop)
 
-    theta = tf.get_variable('theta', shape=(n_obs, n_actions), initializer=tf.random_normal_initializer())
+    theta_h = tf.get_variable('theta_h', shape=(n_obs, n_hidden), initializer=tf.random_normal_initializer())
+    b_h = tf.get_variable('b_h', shape=n_hidden, initializer=tf.constant_initializer(0.0))
+
+    theta = tf.get_variable('theta', shape=(n_hidden, n_actions), initializer=tf.random_normal_initializer())
     b = tf.get_variable('b', shape=n_actions, initializer=tf.constant_initializer(0.0))
 
     # action_probabilies: dim = traj-length x n_actions, softmax over the output. Used for action selection in the
     # training loop
-    out_lin = tf.matmul(state_holder, theta, name='output_activation') + b
-    action_probabilities = tf.nn.softmax(out_lin, name='action_probabilities')
+    a_y = tf.matmul(state_holder, theta_h, name='output_activation') + b_h
+    y = tf.nn.relu(a_y)
+    a_z = tf.matmul(y, theta, name='output_activation') + b
+    action_probabilities = tf.nn.softmax(a_z, name='action_probabilities')
     variable_summaries(action_probabilities, '/action_probabilities')
 
     # This operation is used for action selection during testing, to select the action with the maximum action probability
