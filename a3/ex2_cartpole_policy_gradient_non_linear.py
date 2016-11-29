@@ -34,7 +34,7 @@ batch_size = 200
 n_train_trials = 1000
 n_test_trials = 100
 gamma = 0.9999
-learning_rate = 0.01
+learning_rate = 0.005
 
 n_hidden = 10
 
