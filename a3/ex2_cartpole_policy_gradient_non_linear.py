@@ -53,7 +53,7 @@ actions_one_hot_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_actions
 discounted_rewards_holder = tf.placeholder(dtype=tf.float32, shape=None, name='symbolic_reward')
 
 # Tensorflow name_scope allows us to group values for use in Tensorboard
-with tf.name_scope('linear_policy'):
+with tf.name_scope('nonlinear_policy'):
     # TODO: Implement the linear policy here for exercise 2a
     # (For exercise 2b, replace the below with a non-linear policy as described in the assignment)
     # The policy i.e. the probability distribution of actions for each state is given by a softmax over the output of

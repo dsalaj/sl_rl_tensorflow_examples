@@ -1,3 +1,5 @@
+import numpy as np
+
 def get_all_coords(I):
     I = I[35:195]  # crop
     I = I[::2, ::2, 0]  # downsample by factor of 2

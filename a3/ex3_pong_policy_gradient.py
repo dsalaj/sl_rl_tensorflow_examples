@@ -38,6 +38,8 @@ n_test_trials = 100
 gamma = 0.9999
 learning_rate = 0.001
 
+n_hidden = 50
+
 state_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_obs), name='symbolic_state')
 actions_one_hot_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_actions),
                                         name='symbolic_actions_one_hot_holder')
@@ -48,11 +50,20 @@ with tf.name_scope('nonlinear_policy'):
     # here but use 50 hidden neurons instead of 10!
     # Note that the dimensionality of observations and actions is different here from the CartPole problem.
 
-    ...
+    theta_h = tf.get_variable('theta_h', shape=(n_obs, n_hidden),
+                              initializer=tf.random_normal_initializer(stddev=1.0/np.sqrt(n_obs)))
+    b_h = tf.get_variable('b_h', shape=n_hidden, initializer=tf.constant_initializer(0.0))
+
+    theta = tf.get_variable('theta', shape=(n_hidden, n_actions),
+                            initializer=tf.random_normal_initializer(stddev=1.0/np.sqrt(n_obs)))
+    b = tf.get_variable('b', shape=n_actions, initializer=tf.constant_initializer(0.0))
 
     # action_probabilies: dim = traj-length x n_actions, softmax over the output. Used for action selection in the
     # training loop
-    action_probabilities = ...
+    a_y = tf.nn.bias_add(tf.matmul(state_holder, theta_h, name='output_activation'), b_h)
+    y = tf.nn.tanh(a_y)
+    a_z = tf.nn.bias_add(tf.matmul(y, theta, name='output_activation'), b)
+    action_probabilities = tf.nn.softmax(a_z, name='action_probabilities')
     variable_summaries(action_probabilities, '/action_probabilities')
 
     # This operation is used for action selection during testing, to select the action with the maximum action probability
@@ -75,12 +86,14 @@ with tf.name_scope('loss'):
     # * For each variable/operation/placeholder, remember to call the 'variable_summaries' function to enable recording
     #   of the the variable for tensorboard to visualize
 
-    ...
+    chosen_action_prob = tf.batch_matmul(tf.reshape(action_probabilities, (-1, 1, n_actions)),
+                                         tf.reshape(actions_one_hot_holder, (-1, n_actions, 1)))
+    variable_summaries(chosen_action_prob, '/chosen_action_prob')
 
     # Call your final loss function L_theta (This is used below in the gradient descent step).
     # Remember to add a -ve sign since we want to maximize this, but tensorflow has only the minimize operation.
     # Note: This is a scalar.
-    L_theta = ...
+    L_theta = - tf.reduce_sum(tf.log(chosen_action_prob)) * tf.reduce_sum(discounted_rewards_holder)
     variable_summaries(L_theta, '/L_theta')
 
 with tf.name_scope('train'):
