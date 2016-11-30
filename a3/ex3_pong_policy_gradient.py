@@ -89,6 +89,12 @@ with tf.name_scope('loss'):
     chosen_action_prob = tf.batch_matmul(tf.reshape(action_probabilities, (-1, 1, n_actions)),
                                          tf.reshape(actions_one_hot_holder, (-1, n_actions, 1)))
     variable_summaries(chosen_action_prob, '/chosen_action_prob')
+    # TODO: ASK: There are TODOs to implement the policy, the loss and in the main loop to calculate the discounted sum of rewards
+    #       ASK: Traceback (most recent call last):
+    #              File "ex3_pong_policy_gradient_constant_baseline.py", line 244, in <module>
+    #                "Episode {}: Average STEPS in last {} episodes before episode {}".format(episode_no, print_per_episode),
+    #            IndexError: tuple index out of range
+
 
     # Call your final loss function L_theta (This is used below in the gradient descent step).
     # Remember to add a -ve sign since we want to maximize this, but tensorflow has only the minimize operation.

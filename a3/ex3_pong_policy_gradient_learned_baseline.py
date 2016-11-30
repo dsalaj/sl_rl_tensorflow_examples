@@ -37,6 +37,7 @@ n_test_trials = 100
 gamma = 0.9999
 learning_rate = 0.001
 n_hidden = 50
+baseline_n_hidden = 10
 
 state_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_obs), name='symbolic_state')
 actions_one_hot_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_actions),
@@ -51,7 +52,13 @@ with tf.name_scope('nonlinear_policy'):
     #       bias_hid_var, bias_var should be the names of the variables representing the bias of the hidden and output neurons resp.
     #       These variables are used to calculate the baseline_loss below
 
-    ...
+    W_hid_var = tf.get_variable('W_hid_var', shape=(n_obs, n_hidden),
+                              initializer=tf.random_normal_initializer(stddev=1.0/np.sqrt(n_obs)))
+    bias_hid_var = tf.get_variable('bias_hid_var', shape=n_hidden, initializer=tf.constant_initializer(0.0))
+
+    W_var = tf.get_variable('W_var', shape=(n_hidden, n_actions),
+                            initializer=tf.random_normal_initializer(stddev=1.0/np.sqrt(n_obs)))
+    bias_var = tf.get_variable('biasvar', shape=n_actions, initializer=tf.constant_initializer(0.0))
 
     # This list is used for calculating the gradients of the policy variables, and to minimize their variance using the
     # baseline.
@@ -59,11 +66,16 @@ with tf.name_scope('nonlinear_policy'):
 
     # action_probabilies: dim = traj-length x n_actions, softmax over the output. Used for action selection in the
     # training loop
-    action_probabilities = ...
+    a_y = tf.nn.bias_add(tf.matmul(state_holder, W_hid_var, name='output_activation'), bias_hid_var)
+    y = tf.nn.tanh(a_y)
+    a_z = tf.nn.bias_add(tf.matmul(y, W_var, name='output_activation'), bias_var)
+    action_probabilities = tf.nn.softmax(a_z, name='action_probabilities')
     variable_summaries(action_probabilities, '/action_probabilities')
+
 
     # This operation is used for action selection during testing, to select the action with the maximum action probability
     testing_action_choice = tf.argmax(action_probabilities, dimension=1, name='testing_action_choice')
+
 
 with tf.name_scope('baseline'):
     # NOTE: This implements a linear function for learning the baseline!
@@ -77,19 +89,26 @@ with tf.name_scope('baseline'):
     # Use 10 hidden neurons for the network
 
     # Implementation of linear function follows
-    theta_var_baseline = tf.Variable(initial_value=np.random.rand(n_obs, 1), validate_shape=True,
+    W_hid_baseline = tf.Variable(initial_value=np.random.rand(n_obs, baseline_n_hidden), validate_shape=True,
+                                 trainable=True, dtype=tf.float32, name='hidden_theta_baseline')
+    theta_var_baseline = tf.Variable(initial_value=np.random.rand(baseline_n_hidden, 1), validate_shape=True,
                                      trainable=True, dtype=tf.float32, name='theta_baseline')
     variable_summaries(theta_var_baseline, '/theta_baseline')
+    bias_hid_baseline = tf.Variable(initial_value=np.zeros(baseline_n_hidden), validate_shape=True, trainable=True,
+                                    dtype=tf.float32, name='hidden_bias_baseline')
     bias_var_baseline = tf.Variable(initial_value=np.zeros(1), validate_shape=True, trainable=True,
                                     dtype=tf.float32, name='bias_baseline')
     variable_summaries(bias_var_baseline, '/bias_baseline')
 
     # TODO: For the neural network implementation, add your hidden weights and biases to this list
     # This list is used for performing gradient descent on the baseline variables
-    baseline_variables = [bias_var_baseline, theta_var_baseline]
+    baseline_variables = [bias_var_baseline, theta_var_baseline, bias_hid_baseline, W_hid_baseline]
 
-    output_baseline = tf.matmul(state_holder,
-                                theta_var_baseline) + bias_var_baseline  # Dim -> trajectory length x 1
+    a_y = tf.nn.bias_add(tf.matmul(state_holder, W_hid_baseline), bias_hid_baseline)
+    y = tf.nn.relu(a_y)
+    output_baseline = tf.nn.bias_add(tf.matmul(y, theta_var_baseline, name='output_activation'), bias_var_baseline)
+    # output_baseline = tf.matmul(state_holder,
+    #                             theta_var_baseline) + bias_var_baseline  # Dim -> trajectory length x 1
     variable_summaries(output_baseline, '/output_baseline')
 
     # Reshape n-trajectories x 1 2-D tensor to 1-D tensor
@@ -121,12 +140,15 @@ with tf.name_scope('loss'):
     #       'discounted_rewards_sum' should be the name of the operation representing sum(discounted_rewards - baseline_no_grad)
     #       Both these variables are used below to calculate the baseline loss.
 
-    ...
-
+    chosen_action_prob = tf.batch_matmul(tf.reshape(action_probabilities, (-1, 1, n_actions)),
+                                         tf.reshape(actions_one_hot_holder, (-1, n_actions, 1)))
+    variable_summaries(chosen_action_prob, '/chosen_action_prob')
+    log_probability_sum = tf.reduce_sum(tf.log(chosen_action_prob))
+    discounted_rewards_sum = tf.reduce_sum(tf.sub(discounted_rewards_holder, baseline_no_grad))
     # Call your final loss function L_theta (This is used below in the gradient descent step).
     # Remember to add a -ve sign since we want to maximize this, but tensorflow has only the minimize operation.
     # Note: This is a scalar.
-    L_theta = ...
+    L_theta = - log_probability_sum * discounted_rewards_sum
     variable_summaries(L_theta, '/L_theta')
 
 with tf.name_scope('train'):
