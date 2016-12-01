@@ -66,9 +66,9 @@ with tf.name_scope('nonlinear_policy'):
 
     # action_probabilies: dim = traj-length x n_actions, softmax over the output. Used for action selection in the
     # training loop
-    a_y = tf.nn.bias_add(tf.matmul(state_holder, W_hid_var, name='output_activation'), bias_hid_var)
+    a_y = tf.matmul(state_holder, W_hid_var, name='output_activation') + bias_hid_var
     y = tf.nn.tanh(a_y)
-    a_z = tf.nn.bias_add(tf.matmul(y, W_var, name='output_activation'), bias_var)
+    a_z = tf.matmul(y, W_var, name='output_activation') + bias_var
     action_probabilities = tf.nn.softmax(a_z, name='action_probabilities')
     variable_summaries(action_probabilities, '/action_probabilities')
 
@@ -104,9 +104,9 @@ with tf.name_scope('baseline'):
     # This list is used for performing gradient descent on the baseline variables
     baseline_variables = [bias_var_baseline, theta_var_baseline, bias_hid_baseline, W_hid_baseline]
 
-    a_y = tf.nn.bias_add(tf.matmul(state_holder, W_hid_baseline), bias_hid_baseline)
+    a_y = tf.matmul(state_holder, W_hid_baseline) + bias_hid_baseline
     y = tf.nn.relu(a_y)
-    output_baseline = tf.nn.bias_add(tf.matmul(y, theta_var_baseline, name='output_activation'), bias_var_baseline)
+    output_baseline = tf.matmul(y, theta_var_baseline, name='output_activation') + bias_var_baseline
     # output_baseline = tf.matmul(state_holder,
     #                             theta_var_baseline) + bias_var_baseline  # Dim -> trajectory length x 1
     variable_summaries(output_baseline, '/output_baseline')
@@ -140,8 +140,9 @@ with tf.name_scope('loss'):
     #       'discounted_rewards_sum' should be the name of the operation representing sum(discounted_rewards - baseline_no_grad)
     #       Both these variables are used below to calculate the baseline loss.
 
-    chosen_action_prob = tf.batch_matmul(tf.reshape(action_probabilities, (-1, 1, n_actions)),
-                                         tf.reshape(actions_one_hot_holder, (-1, n_actions, 1)))
+    # chosen_action_prob = tf.batch_matmul(tf.reshape(action_probabilities, (-1, 1, n_actions)),
+    #                                      tf.reshape(actions_one_hot_holder, (-1, n_actions, 1)))
+    chosen_action_prob = tf.reduce_sum(action_probabilities * tf.reshape(actions_one_hot_holder, (-1, n_actions)), 1)
     variable_summaries(chosen_action_prob, '/chosen_action_prob')
     log_probability_sum = tf.reduce_sum(tf.log(chosen_action_prob))
     discounted_rewards_sum = tf.reduce_sum(tf.sub(discounted_rewards_holder, baseline_no_grad))

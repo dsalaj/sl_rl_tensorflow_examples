@@ -60,9 +60,9 @@ with tf.name_scope('nonlinear_policy'):
 
     # action_probabilies: dim = traj-length x n_actions, softmax over the output. Used for action selection in the
     # training loop
-    a_y = tf.nn.bias_add(tf.matmul(state_holder, theta_h, name='output_activation'), b_h)
+    a_y = tf.matmul(state_holder, theta_h, name='output_activation') + b_h
     y = tf.nn.tanh(a_y)
-    a_z = tf.nn.bias_add(tf.matmul(y, theta, name='output_activation'), b)
+    a_z = tf.matmul(y, theta, name='output_activation') + b
     action_probabilities = tf.nn.softmax(a_z, name='action_probabilities')
     variable_summaries(action_probabilities, '/action_probabilities')
 
@@ -86,8 +86,9 @@ with tf.name_scope('loss'):
     # * For each variable/operation/placeholder, remember to call the 'variable_summaries' function to enable recording
     #   of the the variable for tensorboard to visualize
 
-    chosen_action_prob = tf.batch_matmul(tf.reshape(action_probabilities, (-1, 1, n_actions)),
-                                         tf.reshape(actions_one_hot_holder, (-1, n_actions, 1)))
+    # chosen_action_prob = tf.batch_matmul(tf.reshape(action_probabilities, (-1, 1, n_actions)),
+    #                                      tf.reshape(actions_one_hot_holder, (-1, n_actions, 1)))
+    chosen_action_prob = tf.reduce_sum(action_probabilities * tf.reshape(actions_one_hot_holder, (-1, n_actions)), 1)
     variable_summaries(chosen_action_prob, '/chosen_action_prob')
 
     # Call your final loss function L_theta (This is used below in the gradient descent step).
