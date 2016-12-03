@@ -25,14 +25,20 @@ X_stds = np.std(X, axis=0)
 X[:, :] = (X[:, :] - X_means[:]) / X_stds[:]
 C[:] = C[:] - 2
 
-for eta in np.linspace(0.00001, 0.01, num=50):
+# for eta in np.linspace(0.00001, 0.01, num=50):
+for epoch_len in range(20, 10000, 250):
+    eta = 0.004
     w = np.random.random((X.shape[1], 1))
-    for epoch in range(0, 20):
+    for epoch in range(0, epoch_len):
         y = sig(np.dot(X, w))
         a = np.dot(np.transpose(C), np.log(y.clip(min=0.0000000000001)))
         ce = -(a + np.dot(np.transpose(np.ones_like(C) - C), np.log((np.ones_like(y) - y).clip(min=0.00000000000001))))
-        if epoch == 19:
-            print "for eta=", eta, "error =", ce
+        if epoch == epoch_len-1:
+            # print "for eta=", eta, "error =", ce
+            y_norm = (y >= 0.5).astype(int)
+            class_rate = np.sum(C == y_norm) / float(C.shape[0])
+            print "for epoch len=", epoch_len, "error =", ce, "class rate =", class_rate
         E_ce = np.dot(np.transpose(y - C), X[:])
         w = w - eta * np.transpose(E_ce)
 
+# optimal eta was 0.004
