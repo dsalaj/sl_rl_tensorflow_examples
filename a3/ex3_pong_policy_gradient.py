@@ -244,16 +244,16 @@ while episode_no <= n_test_trials:
                   np.mean(episode_rewards_list[(episode_no - print_per_episode):episode_no]), '+-',
                   np.std(episode_rewards_list[(episode_no - print_per_episode):episode_no])
                   )
-            print(
-                "Episode {}: Average STEPS in last {} episodes before episode {}".format(episode_no, print_per_episode),
-                np.mean(episode_steps_list[(episode_no - print_per_episode):episode_no]), '+-',
-                np.std(episode_steps_list[(episode_no - print_per_episode):episode_no])
-            )
+            # print(
+            #     "Episode {}: Average STEPS in last {} episodes before episode {}".format(episode_no, print_per_episode),
+            #     np.mean(episode_steps_list[(episode_no - print_per_episode):episode_no]), '+-',
+            #     np.std(episode_steps_list[(episode_no - print_per_episode):episode_no])
+            # )
 
-print("Average REWARDS in the 100 test steps: {:.2f}+-{.2f}".format(np.mean(episode_rewards_list),
+print("Average REWARDS in the 100 test steps: {:.2f}+-{:.2f}".format(np.mean(episode_rewards_list),
                                                                     np.std(episode_rewards_list)))
-print("Average STEPS in the 100 test steps: {:.2f}+-{.2f}".format(np.mean(episode_steps_list),
-                                                                  np.std(episode_steps_list)))
+# print("Average STEPS in the 100 test steps: {:.2f}+-{.2f}".format(np.mean(episode_steps_list),
+#                                                                   np.std(episode_steps_list)))
 
 ax = plt.subplot(122)
 ax.plot(range(len(episode_rewards_list)), episode_rewards_list)
