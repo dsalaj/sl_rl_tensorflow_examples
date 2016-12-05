@@ -30,12 +30,12 @@ epoch_plot_points = []
 ce_plot_points = []
 mr_plot_points = []
 min_float = 0.00000000000001
-for epoch_len in range(20, 1000, 100):
+for epoch_len in [20, 50] + range(100, 1100, 100) + [1500, 2000]:
     # w = np.random.random((X.shape[1], 1))
     w = np.ones((X.shape[1], 1))
     epoch_plot_points.append(epoch_len)
     done = False
-    for epoch in range(0, epoch_len):
+    for epoch in range(0, epoch_len+1):
         y = sig(X.dot(w))
         R_array = y * (np.ones_like(y) - y)
         R = np.diag(R_array[:, 0])
@@ -45,7 +45,8 @@ for epoch_len in range(20, 1000, 100):
             # if the values are too close to zero, the matrix is singular and the inverse can not be computed
             # this will throw an exception and we can finish? stopping criterion?
             inverse = np.linalg.inv(X.T.dot(R).dot(X))
-            IRLS_update = inverse.dot(X.T).dot(y - C)
+            grad = X.T.dot(y - C) / X.shape[0]
+            IRLS_update = inverse.dot(grad)
             w = w - IRLS_update
         except np.linalg.linalg.LinAlgError as e:
             assert "Singular matrix" in e
@@ -55,7 +56,7 @@ for epoch_len in range(20, 1000, 100):
         ce = -(a + np.dot(np.transpose(np.ones_like(C) - C), np.log((np.ones_like(y) - y).clip(min=min_float))))
         E_ce = np.dot(np.transpose(y - C), X[:])
 
-        if done:
+        if done or epoch == epoch_len:
             y_norm = (y >= 0.5).astype(int)
             class_rate = np.sum(C == y_norm) / float(C.shape[0])
             ce_plot_points.append(ce[0, 0])
@@ -63,8 +64,7 @@ for epoch_len in range(20, 1000, 100):
             mr_plot_points.append(misclass_rate)
             print "for epoch len=", epoch, "error =", ce, "misclass rate =", misclass_rate
             break
-            # With this method we are achieving misclassification error 0.468
-            # (with random init weights misclass error is in range 0.2 - 0.6)
+            # With this method we are achieving misclassification error 0.03 for 900 epochs
 
 
 # plt.figure()
