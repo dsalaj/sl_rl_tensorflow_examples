@@ -35,39 +35,37 @@ for epoch_len in range(20, 1000, 100):
     eta = 0.004
     w = np.random.random((X.shape[1], 1))
     epoch_plot_points.append(epoch_len)
+    done = False
     for epoch in range(0, epoch_len):
         y = sig(X.dot(w))
         R_array = y * (np.ones_like(y) - y)
         R = np.diag(R_array[:, 0])
 
-        # XtR = X.T.dot(R)
-        # # print "XtR shape =", XtR.shape
-        # XtRX = XtR.dot(X)
-        # # print "XtRX shape =", XtRX.shape
-        # XtRX_inv = np.linalg.inv(XtRX)
-        # # print "XtRX_inv shape =", XtRX_inv.shape
-        # XtRX_inv_Xt = XtRX_inv.dot(X.T)
-        # # print "XtRX_inv_Xt shape =", XtRX_inv_Xt.shape
-        # # print "(y - C) shape =", (y - C).shape
-        # IRLS_update = XtRX_inv_Xt.dot(y - C)
-
-        IRLS_update = np.linalg.inv(X.T.dot(R).dot(X)).dot(X.T).dot(y - C)
-        # print "IRLS_update shape =", IRLS_update.shape
-        w = w - IRLS_update
+        try:
+            # FIXME:
+            # if the values are too close to zero, the matrix is singular and the inverse can not be computed
+            # this will throw an exception and we can finish? stopping criterion?
+            inverse = np.linalg.inv(X.T.dot(R).dot(X))
+            IRLS_update = inverse.dot(X.T).dot(y - C)
+            w = w - IRLS_update
+        except np.linalg.linalg.LinAlgError as e:
+            assert "Singular matrix" in e
+            done = True
 
         a = np.dot(np.transpose(C), np.log(y.clip(min=min_float)))
         ce = -(a + np.dot(np.transpose(np.ones_like(C) - C), np.log((np.ones_like(y) - y).clip(min=min_float))))
         E_ce = np.dot(np.transpose(y - C), X[:])
         # w = w - eta * np.transpose(E_ce)
 
-        if epoch == epoch_len-1:
+        if done:
             # print "for eta=", eta, "error =", ce
             y_norm = (y >= 0.5).astype(int)
             class_rate = np.sum(C == y_norm) / float(C.shape[0])
             ce_plot_points.append(ce[0, 0])
             misclass_rate = 1 - class_rate
             mr_plot_points.append(misclass_rate)
-            print "for epoch len=", epoch_len, "error =", ce, "misclass rate =", misclass_rate
+            print "for epoch len=", epoch, "error =", ce, "misclass rate =", misclass_rate
+            break
 
 # optimal eta was 0.004
 
