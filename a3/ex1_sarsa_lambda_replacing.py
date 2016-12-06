@@ -105,6 +105,8 @@ def simulate(lmbda):
         acc_reward = 0  # Init the accumulated reward
         observation = env.reset()  # Init the state
         action = policy(Q_table, observation, epsilon)  # Init the first action
+        # resetting eligibility traces
+        eligibility_traces = np.zeros((n_state, n_action), dtype=np.float)
 
         for t in range(trial_duration):  # The number of time steps in this game is maximum 200
             if should_render: env.render()
