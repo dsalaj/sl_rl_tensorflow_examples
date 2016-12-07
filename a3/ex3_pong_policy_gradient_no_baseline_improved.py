@@ -23,18 +23,13 @@ from pong_tools import prepro
 from tf_tools import variable_summaries
 
 
-
+#iterate_minibatches divides dataset into mini-batches
 def iterate_minibatches(action_one_hots, states, rewards, batchsize, shuffle=False):
     if shuffle:
       indices = np.arange(len(action_one_hots))
       np.random.shuffle(indices)
     for start_idx in range(0, len(action_one_hots) - batchsize + 1, batchsize):
       if shuffle:
-        #print('mini batch size' + str(len(indices[start_idx:start_idx + batchsize])))
-        # if(len(indices[start_idx:start_idx + batchsize]) < batchsize):
-        #   print ('Skipping last ' + str(len(indices[start_idx:start_idx + batchsize])) + 'inputs')
-        #   print ('Dataset not divisible by the batchsize')
-        #   break
         excerpt = indices[start_idx:start_idx + batchsize]
       else:
         excerpt = slice(start_idx, start_idx + batchsize)
@@ -178,64 +173,14 @@ while episode_no <= n_train_trials:
     batch_rewards.append(reward)
     single_episode_rewards.append(reward)
 
-    # if reward != 0 or (len(batch_rewards) > 0 and done):
-    #     # First calculate the gradients that'll be used for learning the baseline
-    #     # This returns a tensor with all the gradients concatenated into one Tensor
-    #     # We accumulate these gradients over the entire experiment to be able to calculate it's mean
-    #     gradients = sess.run(L_theta_gradient_for_baseline_tensor,
-    #                          feed_dict={actions_one_hot_holder: action_one_hots, state_holder: states,
-    #                                     discounted_rewards_holder: batch_rewards})
-    #     gradients_list.append(gradients)
-    #
-    #     # Then calculate the discounted rewards for each step
-    #     batch_reward_length = len(batch_rewards)
-    #     discounted_batch_rewards = batch_rewards.copy()
-    #     for i in range(batch_reward_length):
-    #         discounted_batch_rewards[i] *= (gamma ** (batch_reward_length - i - 1))
-    #
-    #     # Just perform the gradient descent step for the main loss function L_theta
-    #     sess.run(grad_apply,
-    #              feed_dict={actions_one_hot_holder: action_one_hots, state_holder: states,
-    #                         discounted_rewards_holder: discounted_batch_rewards})
-    #
-    #     # Now we update the baseline parameters, by passing it the list of gradients stored
-    #     # so that it can find it's mean and calculate the variance of the gradients.
-    #     # Remember that we're trying to minimize the variance of the gradient estimates by learning this baseline.
-    #     summary, _ = sess.run([merged, baseline_opt],
-    #                           feed_dict={gradients_holder: np.array(gradients_list),
-    #                                      actions_one_hot_holder: action_one_hots,
-    #                                      state_holder: states,
-    #                                      discounted_rewards_holder: batch_rewards})
-    #     train_writer.add_summary(summary, episode_no)
-    #
-    #     action_one_hots = []
-    #     states = []
-    #     batch_rewards = []
 
-
-    # if(reward != 0 or (len(batch_rewards) > 0 and done)) and (episode_no+1)%101 == 0:
+    #do learning every 2 episodes
     if done and (episode_no+1)%2 == 0:
 
-        # First calculate the discounted rewards for each step
-        # print("Learning phase")
         batch_reward_length = len(batch_rewards)
         discounted_batch_rewards = batch_rewards.copy()
-        # for i in range(batch_reward_length):
-        #     discounted_batch_rewards[i] *= (gamma ** (batch_reward_length - i - 1))
 
-
-
-        #  num_epochs = 1
-        # for epoch in range(num_epochs):
-        #   for batch in iterate_minibatches(action_one_hots, states, batch_rewards, 100, shuffle=True):
-        #     action_one_hots_batch, states_batch, batch_rewards_batch = batch
-        #     # print(len(action_one_hots_batch))
-        #     # print(len(st
-
-        # num_epochs = 3
-        # for epoch in range(num_epochs):
-        print("Episode: ", episode_no, " Dataset size: ", len(discounted_batch_rewards))
-        # for batch in iterate_minibatches(action_one_hots, states, discounted_batch_rewards, 1000, shuffle=True):
+        # train in mini-batches
         for batch in iterate_minibatches(action_one_hots, states, discounted_batch_rewards, 40, shuffle=True):
           action_one_hots_batch, states_batch, discounted_batch_rewards_batch = batch
           # Next run the gradient descent step
