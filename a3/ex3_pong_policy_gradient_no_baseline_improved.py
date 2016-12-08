@@ -50,7 +50,7 @@ n_obs = 6
 
 print_per_episode = 100
 
-n_train_trials = 2000
+n_train_trials = 1000
 n_test_trials = 100
 gamma = 0.9999
 learning_rate = 0.001
@@ -189,7 +189,9 @@ while episode_no <= n_train_trials:
           summary, _ = sess.run([merged, grad_apply],
                                 feed_dict={actions_one_hot_holder: action_one_hots_batch, state_holder: states_batch,
                                            discounted_rewards_holder: discounted_batch_rewards_batch})
-          train_writer.add_summary(summary, episode_no)
+
+          # tensorboard produced some bug which were not able to resolve, so we comment this part out
+          # train_writer.add_summary(summary, episode_no)
 
         action_one_hots = []
         states = []
