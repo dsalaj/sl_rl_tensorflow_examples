@@ -30,6 +30,7 @@ epoch_plot_points = []
 ce_plot_points = []
 mr_plot_points = []
 min_float = 0.00000000000001
+
 for epoch_len in [20, 50] + range(100, 1100, 100) + [1500, 2000]:
     # w = np.random.random((X.shape[1], 1))
     w = np.ones((X.shape[1], 1))
@@ -67,16 +68,16 @@ for epoch_len in [20, 50] + range(100, 1100, 100) + [1500, 2000]:
             # With this method we are achieving misclassification error 0.03 for 900 epochs
 
 
-# plt.figure()
-# plt.subplot(211)
-# plt.plot(epoch_plot_points, ce_plot_points, 'b-')
-# plt.xlabel("Number of epochs")
-# plt.ylabel("Cross-entropy error")
-# plt.subplot(212)
-# plt.plot(epoch_plot_points, mr_plot_points, 'r-')
-# plt.xlabel("Number of epochs")
-# plt.ylabel("Misclassification rate")
-# # plt.title("solution a)")
-#
-# plt.tight_layout()
-# plt.show()
+plt.figure()
+plt.subplot(211)
+plt.plot(epoch_plot_points, ce_plot_points, 'b-')
+plt.xlabel("Number of epochs")
+plt.ylabel("Cross-entropy error")
+plt.subplot(212)
+plt.plot(epoch_plot_points, mr_plot_points, 'r-')
+plt.xlabel("Number of epochs")
+plt.ylabel("Misclassification rate")
+# plt.title("solution a)")
+
+plt.tight_layout()
+plt.show()

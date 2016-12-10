@@ -44,17 +44,13 @@ ce_plot_points = []
 mr_plot_points = []
 min_float = 0.00000000000001
 
-e_0 = 0.4
-e_tau = 0.01 * e_0
-tau = 400
+
 # learn over different epoch lengths (needed for plot later)
+eta = 0.004
 for epoch_len in [10, 20] + range(100, 1050, 50):
 
     # initialize weights with random values
     w = np.random.random((X.shape[1], 1))
-    # initialize eta
-    eta = e_0
-
     epoch_plot_points.append(epoch_len)
 
     for epoch in range(0, epoch_len):
@@ -76,9 +72,6 @@ for epoch_len in [10, 20] + range(100, 1050, 50):
         E_ce = np.dot(np.transpose(y - C), X[:])
         # update rule
         w = w - eta * np.transpose(E_ce)
-        # meta parameter search
-        if epoch < tau:
-            eta = (1 - epoch / tau) * e_0 + (epoch / tau) * e_tau
 
 # optimal eta was 0.004
 
