@@ -97,9 +97,9 @@ for i in range(100, 1+num_epochs):
         print "epoch =", i, "error =", test_ce, "class rate =", class_rate
 
 
-w = np.ones((X.shape[1], 1))
 done = False
 for epoch_len in range(100, 1100, 100):
+    w = np.ones((X.shape[1], 1))
     for epoch in range(0, epoch_len+1):
         y = sig(X.dot(w))
         R_array = y * (np.ones_like(y) - y)
@@ -135,17 +135,19 @@ for epoch_len in range(100, 1100, 100):
 print "length ", len(a_ce_plot_points)
 plt.figure()
 plt.subplot(211)
-plt.plot(a_epoch_plot_points, a_ce_plot_points, 'b-')
-plt.plot(b_epoch_plot_points, b_ce_plot_points, 'r-')
-plt.plot(c_epoch_plot_points, c_ce_plot_points, 'g-')
+plt.plot(a_epoch_plot_points, a_ce_plot_points, 'b-', label="batch GD")
+plt.plot(b_epoch_plot_points, b_ce_plot_points, 'r-', label="stochastic GD")
+plt.plot(c_epoch_plot_points, c_ce_plot_points, 'g-', label="IRLS")
 plt.xlabel("Number of epochs")
 plt.ylabel("Cross-entropy error")
+plt.legend()
 plt.subplot(212)
-plt.plot(a_epoch_plot_points, a_mr_plot_points, 'b-')
-plt.plot(b_epoch_plot_points, b_mr_plot_points, 'r-')
-plt.plot(c_epoch_plot_points, c_mr_plot_points, 'g-')
+plt.plot(a_epoch_plot_points, a_mr_plot_points, 'b-', label="batch GD")
+plt.plot(b_epoch_plot_points, b_mr_plot_points, 'r-', label="stochastic GD")
+plt.plot(c_epoch_plot_points, c_mr_plot_points, 'g-', label="IRLS")
 plt.xlabel("Number of epochs")
 plt.ylabel("Misclassification rate")
+plt.legend()
 # plt.title("solution a)")
 
 plt.tight_layout()
