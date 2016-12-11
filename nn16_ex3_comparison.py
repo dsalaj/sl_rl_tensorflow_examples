@@ -41,9 +41,9 @@ c_mr_plot_points = []
 
 min_float = 0.00000000000001
 # initialize weights with random values
-w = np.random.random((X.shape[1], 1))
 eta = 0.004
-for epoch_len in range(100, 1050, 50):
+for epoch_len in range(1,100,10) + range(100, 1050, 50):
+    w = np.random.random((X.shape[1], 1))
     for epoch in range(0, epoch_len):
 
         # prediction
@@ -70,7 +70,7 @@ for epoch_len in range(100, 1050, 50):
 eta = 0.008
 w = np.random.random((X.shape[1], 1))
 num_epochs = 1000
-for i in range(100, 1+num_epochs):
+for i in range(1, 1+num_epochs):
     for [x, c] in zip(X, C):
         y = sig(np.dot(x, w))
         # a = np.dot(c, np.log(y.clip(min=min_float)))
@@ -98,7 +98,7 @@ for i in range(100, 1+num_epochs):
 
 
 done = False
-for epoch_len in range(100, 1100, 100):
+for epoch_len in range(1,100,10) + range(100, 1100, 100):
     w = np.ones((X.shape[1], 1))
     for epoch in range(0, epoch_len+1):
         y = sig(X.dot(w))
