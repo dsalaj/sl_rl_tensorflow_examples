@@ -33,7 +33,7 @@ min_float = 0.00000000000001
 
 for epoch_len in [20, 50] + range(100, 1100, 100) + [1500, 2000]:
     # w = np.random.random((X.shape[1], 1))
-    w = np.ones((X.shape[1], 1))
+    w = np.random.uniform(-5e-5,5e-5,(X.shape[1], 1))
     epoch_plot_points.append(epoch_len)
     done = False
     for epoch in range(0, epoch_len+1):
