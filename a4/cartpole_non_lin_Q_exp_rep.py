@@ -174,52 +174,55 @@ for k in range(N_trial + N_trial_test):
         if done and t < 199: reward = -1    # The reward is modified
 
         exp_mem.append(zip((observation, new_observation, action, reward, done)))
-        mb_size = 2
+        mb_size = 7
 
-        if t > 1:
-            # minibatch_zip_ = random.sample(exp_mem, mb_size)
-            minibatch_zip_ = [exp_mem[-1], exp_mem[-2]]
-            minibatch_zip = copy.deepcopy(minibatch_zip_)
-            mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
-            assert((observation == mb_obs[0][0]).all())
-            assert((new_observation == mb_nob[0][0]).all())
-            assert(action == mb_act[0][0])
-            assert(reward == mb_rew[0][0])
-            assert(done == mb_don[0][0])
+        if t >= mb_size and t % mb_size == 0:
+            exp_mem = exp_mem[-7:]
+            for i in range(2):
+                # print(t)
+                # minibatch_zip_ = random.sample(exp_mem, mb_size)
+                minibatch_zip_ = [exp_mem[-(i+1)] for i in range(mb_size)]
+                minibatch_zip = copy.deepcopy(minibatch_zip_)
+                mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
+                # assert((observation == mb_obs[0][0]).all())
+                # assert((new_observation == mb_nob[0][0]).all())
+                # assert(action == mb_act[0][0])
+                # assert(reward == mb_rew[0][0])
+                # assert(done == mb_don[0][0])
 
-            mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
-            mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
-            mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
-            mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
-            mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
-            one_hot_actions = np.zeros((mb_size, n_action))
-            one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1
-            # print("------------")
-            # print("mb_act", mb_act)
-            # print("one_hot_actions", one_hot_actions)
-            # print("one_hot_actions shape", one_hot_actions.shape)
+                mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
+                mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
+                mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
+                mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
+                mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
+                one_hot_actions = np.zeros((mb_size, n_action))
+                one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1
+                # print("------------")
+                # print("mb_act", mb_act)
+                # print("one_hot_actions", one_hot_actions)
+                # print("one_hot_actions shape", one_hot_actions.shape)
 
-            # Perform one step of gradient descent
-            summary, _ = sess.run([merged, training_step], feed_dict={
-                state_holder: mb_obs.reshape(-1, dim_state),
-                next_state_holder: mb_nob.reshape(-1, dim_state),
-                # action_holder: mb_act.reshape(-1,),
-                action_holder: one_hot_actions.reshape(-1, n_action, 1),
-                is_done_holder: mb_don.reshape(-1,),
-                r_holder: mb_rew.reshape(-1,),
-                learning_rate_holder: learning_rate})
-            train_writer.add_summary(summary, k*trial_duration + t)
+                # Perform one step of gradient descent
+                summary, _ = sess.run([merged, training_step], feed_dict={
+                    state_holder: mb_obs.reshape(-1, dim_state),
+                    next_state_holder: mb_nob.reshape(-1, dim_state),
+                    # action_holder: mb_act.reshape(-1,),
+                    action_holder: one_hot_actions.reshape(-1, n_action, 1),
+                    is_done_holder: mb_don.reshape(-1,),
+                    r_holder: mb_rew.reshape(-1,),
+                    learning_rate_holder: learning_rate})
+                train_writer.add_summary(summary, k*trial_duration + t)
 
-            # Compute the Bellman Error for monitoring
-            err = sess.run(error, feed_dict={
-                state_holder: mb_obs.reshape(-1, dim_state),
-                next_state_holder: mb_nob.reshape(-1, dim_state),
-                # action_holder: mb_act.reshape(-1,),
-                action_holder: one_hot_actions.reshape(-1, n_action, 1),
-                is_done_holder: mb_don.reshape(-1,),
-                r_holder: mb_rew.reshape(-1,)})
-            # Add the error in a trial-specific list of errors
-            trial_err_list.append(err)
+                # Compute the Bellman Error for monitoring
+                err = sess.run(error, feed_dict={
+                    state_holder: mb_obs.reshape(-1, dim_state),
+                    next_state_holder: mb_nob.reshape(-1, dim_state),
+                    # action_holder: mb_act.reshape(-1,),
+                    action_holder: one_hot_actions.reshape(-1, n_action, 1),
+                    is_done_holder: mb_don.reshape(-1,),
+                    r_holder: mb_rew.reshape(-1,)})
+                # Add the error in a trial-specific list of errors
+                trial_err_list.append(err)
 
         # new_action = predict(new_observation)  # Compute the next action
 
@@ -227,7 +230,6 @@ for k in range(N_trial + N_trial_test):
         # action = new_action
         action = policy(observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
-
 
         if done:
             break  # Stop the trial when the environment says it is done
