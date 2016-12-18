@@ -128,16 +128,21 @@ def policy(state):
 
     Q_values = sess.run(Q, feed_dict={state_holder: state.reshape(1, dim_state)})
     val = np.max(Q_values[0, :])
-    max_indices = np.where(Q_values[0, :] == val)[0]
+    max_indices = np.where(Q_values[0, 0, :] == val)[0]
+    # print("---------- policy")
+    # print("Q_values shape", Q_values.shape)
+    # print("Q_values", Q_values)
+    # print("val", val)
+    # print("max_indices", max_indices)
     return rd.choice(max_indices)
 
 
-def predict(state):
-
-    Q_values = sess.run(Q, feed_dict={state_holder: state.reshape(1, dim_state)})
-    val = np.max(Q_values[0, :])
-    max_indices = np.where(Q_values[0, :] == val)[0]
-    return rd.choice(max_indices)
+# def predict(state):
+#
+#     Q_values = sess.run(Q, feed_dict={state_holder: state.reshape(1, dim_state)})
+#     val = np.max(Q_values[0, :])
+#     max_indices = np.where(Q_values[0, :] == val)[0]
+#     return rd.choice(max_indices)
 
 
 time_list = []
