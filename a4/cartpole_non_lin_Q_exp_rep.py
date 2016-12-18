@@ -53,8 +53,8 @@ w0 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(n_hidden), size=(n_hidden, n
 b0 = np.zeros(n_action, dtype=np.float32)
 
 # Generate the symbolic variables to hold the state values
-state_holder = tf.placeholder(dtype=tf.float32, shape=(1, dim_state), name='symbolic_state')
-next_state_holder = tf.placeholder(dtype=tf.float32, shape=(1, dim_state), name='symbolic_state')
+state_holder = tf.placeholder(dtype=tf.float32, shape=(None, dim_state), name='symbolic_state')
+next_state_holder = tf.placeholder(dtype=tf.float32, shape=(None, dim_state), name='symbolic_state')
 
 # Create the parameters of the Q model
 w = tf.Variable(initial_value=w0, trainable=True, name='weight_variable')
@@ -65,33 +65,41 @@ bh = tf.Variable(initial_value=bh0, trainable=True, name='hidden_bias')
 # Q function at the current step
 a_y = tf.matmul(state_holder, wh, name='output_activation') + bh
 y = tf.nn.relu(a_y, name='hidden_layer_activation')
+print("y shape", y.get_shape())
 a_z = tf.matmul(y, w, name='output_activation') + b
 Q = - tf.sigmoid(a_z, name='Q_model')
+print("Q shape", Q.get_shape())
 
 # Q function at the next step
 next_a_y = tf.matmul(next_state_holder, wh, name='next_step_output_activation') + bh
 next_y = tf.nn.relu(next_a_y, name='next_step_hidden_layer_activation')
+print("next_y shape", next_y.get_shape())
 next_a_z = tf.matmul(next_y, w, name='next_step_output_activation') + b
 next_Q = - tf.nn.sigmoid(next_a_z, name='next_step_Q_model')
+print("next_Q shape", next_Q.get_shape())
 
 # Define symbolic variables that will carry information needed for training
-action_holder = tf.placeholder(dtype=tf.float32, shape=(n_action, 1), name='symbolic_action')
+action_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_action, 1), name='symbolic_action')
 # action_holder = tf.placeholder(dtype=tf.int32, name='symbolic_action')
 r_holder = tf.placeholder(dtype=tf.float32, name='symbolic_value_estimation')
 is_done_holder = tf.placeholder(dtype=tf.float32, name='is_done')
 
 # define the role of each training step
-# Q = tf.reshape(Q, (-1, 1, n_action))
+Q = tf.reshape(Q, (-1, 1, n_action))
 print("Q shape", Q.get_shape())
 # # print("action_holder shape", action_holder.get_shape())
-R = tf.matmul(Q, action_holder)
-# R = tf.batch_matmul(Q, action_holder)
+# R = tf.matmul(Q, action_holder)
+R = tf.batch_matmul(Q, action_holder)
 # R = Q[0, action_holder[0]]
-variable_summaries(R, '/R')
+# variable_summaries(R, '/R')
 print("R shape", R.get_shape())
 next_R = r_holder + gamma * tf.reduce_max(next_Q, reduction_indices=1) * (1 - is_done_holder)
+# variable_summaries(next_R, '/next_R')
+print("next_R shape", next_R.get_shape())
 
 error = (R - next_R)**2
+variable_summaries(error, '/error')
+print("error shape", error.get_shape())
 
 # Define the operation that performs the optimization
 learning_rate_holder = tf.placeholder(dtype=tf.float32, name='symbolic_state')
@@ -161,57 +169,60 @@ for k in range(N_trial + N_trial_test):
         if done and t < 199: reward = -1    # The reward is modified
 
         exp_mem.append(zip((observation, new_observation, action, reward, done)))
-        mb_size = 1
+        mb_size = 2
 
-        # minibatch_zip_ = random.sample(exp_mem, mb_size)
-        minibatch_zip_ = [exp_mem[-1], ]
-        minibatch_zip = copy.deepcopy(minibatch_zip_)
-        mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
-        assert((observation == mb_obs[0][0]).all())
-        assert((new_observation == mb_nob[0][0]).all())
-        assert(action == mb_act[0][0])
-        assert(reward == mb_rew[0][0])
-        assert(done == mb_don[0][0])
+        if t > 1:
+            # minibatch_zip_ = random.sample(exp_mem, mb_size)
+            minibatch_zip_ = [exp_mem[-1], exp_mem[-2]]
+            minibatch_zip = copy.deepcopy(minibatch_zip_)
+            mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
+            assert((observation == mb_obs[0][0]).all())
+            assert((new_observation == mb_nob[0][0]).all())
+            assert(action == mb_act[0][0])
+            assert(reward == mb_rew[0][0])
+            assert(done == mb_don[0][0])
 
-        mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
-        mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
-        mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
-        mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
-        mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
-        one_hot_actions = np.zeros((mb_size, n_action))
-        one_hot_actions[np.arange(mb_size), mb_act] = 1
-        # print(mb_act)
-        # print(one_hot_actions)
+            mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
+            mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
+            mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
+            mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
+            mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
+            one_hot_actions = np.zeros((mb_size, n_action))
+            one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1
+            # print("------------")
+            # print("mb_act", mb_act)
+            # print("one_hot_actions", one_hot_actions)
+            # print("one_hot_actions shape", one_hot_actions.shape)
 
-        new_action = predict(new_observation)  # Compute the next action
+            # Perform one step of gradient descent
+            summary, _ = sess.run([merged, training_step], feed_dict={
+                state_holder: mb_obs.reshape(-1, dim_state),
+                next_state_holder: mb_nob.reshape(-1, dim_state),
+                # action_holder: mb_act.reshape(-1,),
+                action_holder: one_hot_actions.reshape(-1, n_action, 1),
+                is_done_holder: mb_don.reshape(-1,),
+                r_holder: mb_rew.reshape(-1,),
+                learning_rate_holder: learning_rate})
+            train_writer.add_summary(summary, k*trial_duration + t)
 
-        # Perform one step of gradient descent
-        summary, _ = sess.run([merged, training_step], feed_dict={
-            state_holder: mb_obs.reshape(-1, dim_state),
-            next_state_holder: mb_nob.reshape(-1, dim_state),
-            # action_holder: mb_act.reshape(-1,),
-            action_holder: one_hot_actions.reshape(n_action, 1),
-            is_done_holder: mb_don.reshape(-1,),
-            r_holder: mb_rew.reshape(-1,),
-            learning_rate_holder: learning_rate})
-        train_writer.add_summary(summary, k*trial_duration + t)
+            # Compute the Bellman Error for monitoring
+            err = sess.run(error, feed_dict={
+                state_holder: mb_obs.reshape(-1, dim_state),
+                next_state_holder: mb_nob.reshape(-1, dim_state),
+                # action_holder: mb_act.reshape(-1,),
+                action_holder: one_hot_actions.reshape(-1, n_action, 1),
+                is_done_holder: mb_don.reshape(-1,),
+                r_holder: mb_rew.reshape(-1,)})
+            # Add the error in a trial-specific list of errors
+            trial_err_list.append(err)
 
-        # Compute the Bellman Error for monitoring
-        err = sess.run(error, feed_dict={
-            state_holder: mb_obs.reshape(-1, dim_state),
-            next_state_holder: mb_nob.reshape(-1, dim_state),
-            # action_holder: mb_act.reshape(-1,),
-            action_holder: one_hot_actions.reshape(n_action, 1),
-            is_done_holder: mb_don.reshape(-1,),
-            r_holder: mb_rew.reshape(-1,)})
+        # new_action = predict(new_observation)  # Compute the next action
 
         observation = new_observation  # Pass the new state to the next step
         # action = new_action
         action = policy(observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
 
-        # Add the error in a trial-specific list of errors
-        trial_err_list.append(err)
 
         if done:
             break  # Stop the trial when the environment says it is done
