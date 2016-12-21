@@ -27,17 +27,17 @@ from tf_tools import variable_summaries
 import tensorflow as tf
 
 # Algorithm parameters
-learning_rate = 3e-1
+learning_rate = 2e-1
 gamma = .9
-epsilon = 1.
-epsi_decay = .999
-lr_decay = .999
+epsilon = .5
+epsi_decay = .9999
+lr_decay = .9999
 n_hidden = 20
 
 # General parameters
 render = False
 N_print_every = 100
-N_trial = 2000
+N_trial = 100000
 N_trial_test = 100
 trial_duration = 200
 
@@ -45,6 +45,20 @@ trial_duration = 200
 env = CartPoleEnv()
 dim_state = env.observation_space.high.__len__()
 n_action = env.action_space.n
+
+def iterate_minibatches(exp_mem, shuffle=False, batchsize = 32):
+    if shuffle:
+      indices = np.arange(len(exp_mem))
+      np.random.shuffle(indices)
+    for start_idx in range(0, len(exp_mem) - batchsize + 1, batchsize):
+      if shuffle:
+        excerpt = indices[start_idx:start_idx + batchsize]
+      else:
+        excerpt = slice(start_idx, start_idx + batchsize)
+
+      exp_mem_yield = [exp_mem[i] for i in excerpt]
+      yield exp_mem_yield
+
 
 # Initialize the parameters of the Q model
 wh0 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(dim_state), size=(dim_state, n_hidden)))
@@ -97,7 +111,7 @@ next_R = r_holder + gamma * tf.reduce_max(next_Q, reduction_indices=1) * (1 - is
 # variable_summaries(next_R, '/next_R')
 print("next_R shape", next_R.get_shape())
 
-error = (R - next_R)**2
+error = tf.reduce_mean((R - next_R)**2)
 variable_summaries(error, '/error')
 print("error shape", error.get_shape())
 
@@ -152,8 +166,6 @@ val_list = []
 exp_mem = []
 
 for k in range(N_trial + N_trial_test):
-    epsilon *= epsi_decay
-    learning_rate *= lr_decay
 
     if k > N_trial:
         epsilon = 0
@@ -174,21 +186,40 @@ for k in range(N_trial + N_trial_test):
         if done and t < 199: reward = -1    # The reward is modified
 
         exp_mem.append(zip((observation, new_observation, action, reward, done)))
-        mb_size = 7
+        if(len(exp_mem) > 500):
+            exp_mem = exp_mem[100:]
+        mb_size = 1
+        # mb_size = 8
+        if(k % 999 == 0 and done):
+            print("Current learning rate: ", learning_rate)
+            print("Current epsilon: ", epsilon)
 
-        if t >= mb_size and t % mb_size == 0:
-            exp_mem = exp_mem[-7:]
-            for i in range(2):
+
+        if len(exp_mem) >= mb_size and len(exp_mem) % mb_size == 0:
+            # if True:
+            # exp_mem = exp_mem[-8:]
+            # for i in range(5):
+            for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
+
                 # print(t)
+                # mb_size = np.min([mini_batch_max_size, len(exp_mem)])
+                #
                 # minibatch_zip_ = random.sample(exp_mem, mb_size)
-                minibatch_zip_ = [exp_mem[-(i+1)] for i in range(mb_size)]
-                minibatch_zip = copy.deepcopy(minibatch_zip_)
-                mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
-                # assert((observation == mb_obs[0][0]).all())
+                # # minibatch_zip_ = [exp_mem[-(i+1)] for i in range(mb_size)]
+                # minibatch_zip = copy.deepcopy(minibatch_zip_)
+                # mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
+                # # assert((observation == mb_obs[0][0]).all())
                 # assert((new_observation == mb_nob[0][0]).all())
                 # assert(action == mb_act[0][0])
                 # assert(reward == mb_rew[0][0])
                 # assert(done == mb_don[0][0])
+
+
+                minibatch_zip_ = batch
+                minibatch_zip = copy.deepcopy(minibatch_zip_)
+                mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
+
+
 
                 mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
                 mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
@@ -212,17 +243,32 @@ for k in range(N_trial + N_trial_test):
                     r_holder: mb_rew.reshape(-1,),
                     learning_rate_holder: learning_rate})
                 train_writer.add_summary(summary, k*trial_duration + t)
+                if i == 5:
+                    break
+            if(learning_rate > 1e-3):
+                learning_rate *= lr_decay
+            else:
+                learning_rate = 1e-3
+            if(epsilon > 0.1):
+                epsilon *= epsi_decay
+            else:
+                epsilon = 0.1
+            # print("New learning rate: ", learning_rate)
+            # print("New epsilon: ", epsilon)
 
-                # Compute the Bellman Error for monitoring
-                err = sess.run(error, feed_dict={
-                    state_holder: mb_obs.reshape(-1, dim_state),
-                    next_state_holder: mb_nob.reshape(-1, dim_state),
-                    # action_holder: mb_act.reshape(-1,),
-                    action_holder: one_hot_actions.reshape(-1, n_action, 1),
-                    is_done_holder: mb_don.reshape(-1,),
-                    r_holder: mb_rew.reshape(-1,)})
-                # Add the error in a trial-specific list of errors
-                trial_err_list.append(err)
+
+        one_hot_action = np.zeros((1, n_action))
+        one_hot_action[0, action] = 1
+        # Compute the Bellman Error for monitoring
+        err = sess.run(error, feed_dict={
+            state_holder: observation.reshape(-1, dim_state),
+            next_state_holder: new_observation.reshape(-1, dim_state),
+            # action_holder: mb_act.reshape(-1,),
+            action_holder: one_hot_action.reshape(-1, n_action, 1),
+            is_done_holder: np.array(done).reshape(-1,),
+            r_holder: np.array(reward).reshape(-1,)})
+        # Add the error in a trial-specific list of errors
+        trial_err_list.append(err)
 
         # new_action = predict(new_observation)  # Compute the next action
 
