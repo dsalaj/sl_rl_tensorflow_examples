@@ -95,8 +95,8 @@ print("next_Q shape", next_Q.get_shape())
 # Define symbolic variables that will carry information needed for training
 action_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_action, 1), name='symbolic_action')
 # action_holder = tf.placeholder(dtype=tf.int32, name='symbolic_action')
-r_holder = tf.placeholder(dtype=tf.float32, name='symbolic_value_estimation')
-is_done_holder = tf.placeholder(dtype=tf.float32, name='is_done')
+r_holder = tf.placeholder(dtype=tf.float32, shape=(None, 1, 1), name='symbolic_value_estimation')
+is_done_holder = tf.placeholder(dtype=tf.float32, shape=(None,), name='is_done')
 
 # define the role of each training step
 Q = tf.reshape(Q, (-1, 1, n_action))
@@ -107,7 +107,10 @@ R = tf.batch_matmul(Q, action_holder)
 # R = Q[0, action_holder[0]]
 # variable_summaries(R, '/R')
 print("R shape", R.get_shape())
-next_R = r_holder + gamma * tf.reduce_max(next_Q, reduction_indices=1) * (1 - is_done_holder)
+# next_Q = tf.reshape(next_Q, (-1, 1, n_action))
+
+gamma_rew = tf.reshape(gamma * tf.reduce_max(next_Q, reduction_indices=(1)) * (1 - is_done_holder), (-1,1,1))
+next_R = r_holder + gamma_rew
 # variable_summaries(next_R, '/next_R')
 print("next_R shape", next_R.get_shape())
 
@@ -188,14 +191,14 @@ for k in range(N_trial + N_trial_test):
         exp_mem.append(zip((observation, new_observation, action, reward, done)))
         if(len(exp_mem) > 500):
             exp_mem = exp_mem[100:]
-        mb_size = 1
+        mb_size = 16
         # mb_size = 8
-        if(k % 999 == 0 and done):
+        if(k % 99 == 0 and done):
             print("Current learning rate: ", learning_rate)
             print("Current epsilon: ", epsilon)
 
 
-        if len(exp_mem) >= mb_size and len(exp_mem) % mb_size == 0:
+        if len(exp_mem) >= mb_size:# and len(exp_mem) % mb_size == 0:
             # if True:
             # exp_mem = exp_mem[-8:]
             # for i in range(5):
@@ -240,7 +243,7 @@ for k in range(N_trial + N_trial_test):
                     # action_holder: mb_act.reshape(-1,),
                     action_holder: one_hot_actions.reshape(-1, n_action, 1),
                     is_done_holder: mb_don.reshape(-1,),
-                    r_holder: mb_rew.reshape(-1,),
+                    r_holder: mb_rew.reshape(-1,1,1),
                     learning_rate_holder: learning_rate})
                 train_writer.add_summary(summary, k*trial_duration + t)
                 if i == 5:
@@ -266,7 +269,7 @@ for k in range(N_trial + N_trial_test):
             # action_holder: mb_act.reshape(-1,),
             action_holder: one_hot_action.reshape(-1, n_action, 1),
             is_done_holder: np.array(done).reshape(-1,),
-            r_holder: np.array(reward).reshape(-1,)})
+            r_holder: np.array(reward).reshape(-1,1,1)})
         # Add the error in a trial-specific list of errors
         trial_err_list.append(err)
 
