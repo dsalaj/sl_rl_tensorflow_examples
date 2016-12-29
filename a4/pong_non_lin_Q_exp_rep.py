@@ -16,7 +16,7 @@ import tensorflow as tf
 # Algorithm parameters
 learning_rate = .2
 gamma = .9
-epsilon = .5
+epsilon = .7
 epsi_decay = .9999
 lr_decay = .9999
 n_hidden = 60
@@ -24,7 +24,7 @@ n_hidden = 60
 # General parameters
 render = False
 # render = True
-N_print_every = 100
+N_print_every = 10
 N_trial = 1000
 N_trial_test = 100
 trial_duration = 200
@@ -72,13 +72,13 @@ bh = tf.Variable(initial_value=bh0, trainable=True, name='hidden_bias')
 a_y = tf.matmul(state_holder, wh, name='output_activation') + bh
 y = tf.nn.relu(a_y, name='hidden_layer_activation')
 a_z = tf.matmul(y, w, name='output_activation') + b
-Q = - tf.sigmoid(a_z, name='Q_model')
+Q = -tf.nn.softmax(a_z, name='Q_model')
 
 # Q function at the next step
 next_a_y = tf.matmul(next_state_holder, wh, name='next_step_output_activation') + bh
 next_y = tf.nn.relu(next_a_y, name='next_step_hidden_layer_activation')
 next_a_z = tf.matmul(next_y, w, name='next_step_output_activation') + b
-next_Q = - tf.nn.sigmoid(next_a_z, name='next_step_Q_model')
+next_Q = -tf.nn.softmax(next_a_z, name='next_step_Q_model')
 
 # Define symbolic variables that will carry information needed for training
 action_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_action, 1), name='symbolic_action')
@@ -157,9 +157,18 @@ for k in range(N_trial + N_trial_test):
         # reward *= 10
         pro_new_observation = prepro(new_observation, observation)
 
-        exp_mem.append(zip((pro_observation, pro_new_observation, action_list.index(action), reward, done)))
+        if(reward != 0):
+            exp_mem.append(zip((pro_observation, pro_new_observation, action_list.index(action), reward, done)))
 
         mb_size = 32
+
+        if (len(exp_mem) > 500):
+            exp_mem = exp_mem[100:]
+            print("New Memory size: ", len(exp_mem))
+
+        if (k % 9 == 0 and done):
+            print("Current learning rate: ", learning_rate)
+            print("Current epsilon: ", epsilon)
 
         # if len(exp_mem) >= mb_size and t % mb_size == 0:
         if done or reward != 0:
@@ -191,6 +200,10 @@ for k in range(N_trial + N_trial_test):
                     learning_rate_holder: learning_rate})
                 train_writer.add_summary(summary, k*trial_duration + t)
 
+                #TODO maybe train one batch per iteration (break), maybe more
+                # if i > 5:
+                #     break
+
             if learning_rate > 1e-3:
                 learning_rate *= lr_decay
             else:
@@ -200,7 +213,7 @@ for k in range(N_trial + N_trial_test):
             else:
                 epsilon = 0.1
 
-            exp_mem = []
+            # exp_mem = []
 
         one_hot_action = np.zeros((1, n_action))
         one_hot_action[0, action_list.index(action)] = 1
@@ -229,7 +242,7 @@ for k in range(N_trial + N_trial_test):
     time_list.append(t + 1)
     reward_list.append(acc_reward)  # Store the result
 
-    print_results(k, time_list, err_list, reward_list)
+    print_results(k, time_list, err_list, reward_list, N_print_every=N_print_every)
 
 plot_results(N_trial, N_trial_test, reward_list, time_list, err_list)
 plt.show()

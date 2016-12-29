@@ -37,7 +37,7 @@ n_hidden = 20
 # General parameters
 render = False
 N_print_every = 100
-N_trial = 100000
+N_trial = 1000
 N_trial_test = 100
 trial_duration = 200
 
