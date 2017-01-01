@@ -6,13 +6,14 @@ import tensorflow as tf
 learning_rate = 0.1
 n_hidden = 20
 batch_size = 40
+n_epochs = 10
 
 # NOTE:
+# mini-batch size 40
 # single hidden layer of 20 neurons
 # softmax output layer
 # optimize (minimize) cross entropy error
 # report misclassification rate
-# mini-batch size 40
 # compare stochastic GD with RMSprop and ADAM
 # implement early stopping
 # chose learning rate for each algorithm and compare with plots
@@ -95,8 +96,11 @@ correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # Train
-for i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X, C_onehot, shuffle=False, batchsize=batch_size)):
-  sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
-  if i % 5 == 0:
-    print("accuracy after", i, "batches of size", batch_size, "=", sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot}))
+for e_i in range(n_epochs):
+  for b_i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X, C_onehot, shuffle=False, batchsize=batch_size)):
+    sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
+    if b_i % 20 == 0:
+      print("accuracy after", int(e_i*n_data/batch_size)+b_i,
+            "batches of size", batch_size, "=",
+            sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot}))
 
