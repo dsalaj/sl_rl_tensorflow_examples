@@ -5,6 +5,7 @@ import tensorflow as tf
 
 learning_rate = 0.1
 n_hidden = 20
+batch_size = 40
 
 # NOTE:
 # single hidden layer of 20 neurons
@@ -60,27 +61,31 @@ C_onehot[np.arange(n_data), C - np.ones_like(C)] = 1
 C_tst_onehot = np.zeros((n_tst_data, n_classes))
 C_tst_onehot[np.arange(n_tst_data), C_tst - np.ones_like(C_tst)] = 1
 
-# Create the model
-x = tf.placeholder(tf.float32, [None, n_features])
-W = tf.Variable(tf.zeros([n_features, n_classes]))
-b = tf.Variable(tf.zeros([n_classes]))
-y = tf.matmul(x, W) + b
-
-# # Create the model with hidden layer
+# # Create the model
 # x = tf.placeholder(tf.float32, [None, n_features])
-# W = tf.Variable(tf.zeros([n_features, n_hidden]))
-# b = tf.Variable(tf.zeros([n_hidden]))
-# Wh = tf.Variable(tf.zeros([n_hidden, n_classes]))
-# bh = tf.Variable(tf.zeros([n_classes]))
-# a_inpt = tf.matmul(x, W) + b
-# inpt = tf.nn.sigmoid(a_inpt)
-# a_y = tf.matmul(inpt, Wh) + bh
-# y = tf.nn.softmax(a_y)
+# W = tf.Variable(tf.zeros([n_features, n_classes]))
+# b = tf.Variable(tf.zeros([n_classes]))
+# # W = tf.Variable(tf.truncated_normal([n_features, n_classes], stddev=0.1))
+# # b = tf.Variable(tf.constant(0.1, shape=[n_classes]))
+# y = tf.matmul(x, W) + b
+
+# Create the model with hidden layer
+x = tf.placeholder(tf.float32, [None, n_features])
+W = tf.Variable(tf.truncated_normal([n_features, n_hidden], stddev=0.1))
+b = tf.Variable(tf.constant(0.1, shape=[n_hidden]))
+Wh = tf.Variable(tf.truncated_normal([n_hidden, n_classes], stddev=0.1))
+bh = tf.Variable(tf.constant(0.1, shape=[n_classes]))
+a_inpt = tf.matmul(x, W) + b
+inpt = tf.nn.relu(a_inpt)
+y = tf.matmul(inpt, Wh) + bh
+# not applying softmax as it is implicitly used in cross_entropy bellow
 
 # Define loss and optimizer
 y_ = tf.placeholder(tf.float32, [None, n_classes])
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y, y_))
 train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(cross_entropy)
+# train_step = tf.train.AdamOptimizer(learning_rate).minimize(cross_entropy)
+# train_step = tf.train.RMSPropOptimizer(learning_rate).minimize(cross_entropy)
 
 sess = tf.InteractiveSession()
 tf.initialize_all_variables().run()
@@ -90,8 +95,8 @@ correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # Train
-for i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X, C_onehot, shuffle=False, batchsize=40)):
+for i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X, C_onehot, shuffle=False, batchsize=batch_size)):
   sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
   if i % 5 == 0:
-    print("accuracy after", i, "batches of size 40 = ", sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot}))
+    print("accuracy after", i, "batches of size", batch_size, "=", sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot}))
 
