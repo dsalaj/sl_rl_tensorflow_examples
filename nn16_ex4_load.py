@@ -42,6 +42,14 @@ file_in.close()
 X_tst = isolet_test[0]   # input vectors X[i,:] is i-th example
 C_tst = isolet_test[1]   # classes C[i] is class of i-th example
 
+# Normalize the data
+X_means = np.mean(X, axis=0)
+X_stds = np.std(X, axis=0)
+X[:, :] = (X[:, :] - X_means[:]) / X_stds[:]
+X_tst_means = np.mean(X_tst, axis=0)
+X_tst_stds = np.std(X_tst, axis=0)
+X_tst[:, :] = (X_tst[:, :] - X_tst_means[:]) / X_tst_stds[:]
+
 n_data = C.shape[0]
 n_tst_data = C_tst.shape[0]
 n_features = X.shape[1]  # = 300
@@ -51,8 +59,6 @@ C_onehot = np.zeros((n_data, n_classes))
 C_onehot[np.arange(n_data), C - np.ones_like(C)] = 1
 C_tst_onehot = np.zeros((n_tst_data, n_classes))
 C_tst_onehot[np.arange(n_tst_data), C_tst - np.ones_like(C_tst)] = 1
-
-# TODO: Normalize the data
 
 # Create the model
 x = tf.placeholder(tf.float32, [None, n_features])
