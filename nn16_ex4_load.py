@@ -6,7 +6,7 @@ import tensorflow as tf
 learning_rate = 0.1
 n_hidden = 20
 batch_size = 40
-n_epochs = 10
+n_epochs = 80
 
 # NOTE:
 # mini-batch size 40
@@ -96,11 +96,30 @@ correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # Train
-for e_i in range(n_epochs):
-  for b_i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X, C_onehot, shuffle=False, batchsize=batch_size)):
-    sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
-    if b_i % 20 == 0:
-      print("accuracy after", int(e_i*n_data/batch_size)+b_i,
-            "batches of size", batch_size, "=",
-            sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot}))
+n_train_data = int(n_data * 0.8)
+X_train = X[:n_train_data]
+C_train_onehot = C_onehot[:n_train_data]
+X_valid = X[n_train_data:]
+C_valid_onehot = C_onehot[n_train_data:]
 
+max_valid_acc = 0
+opt_epoch_num = 0
+opt_batch_part = 0
+for e_i in range(n_epochs):
+  for b_i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot, shuffle=False, batchsize=batch_size)):
+    sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
+    valid_acc = sess.run(accuracy, feed_dict={x: X_valid, y_: C_valid_onehot})
+    if valid_acc > max_valid_acc:
+      max_valid_acc = valid_acc
+      opt_epoch_num = e_i
+      opt_batch_part = b_i
+  train_acc = sess.run(accuracy, feed_dict={x: X_train, y_: C_train_onehot})
+  test_acc = sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot})
+  print("test accuracy after", e_i, "epochs =", test_acc,
+        # int(e_i*n_data/batch_size), "batches of size", batch_size, "=",
+        "train accuracy", train_acc,
+        "validation accuracy", valid_acc)
+
+print("Epoch number with best validation accuracy is", opt_epoch_num,
+      ", more precisely", (opt_epoch_num*batch_size)+opt_batch_part,
+      "mini matches of size", batch_size)
