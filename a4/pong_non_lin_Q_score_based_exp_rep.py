@@ -13,18 +13,26 @@ from cartpole_utils import plot_results,print_results
 from tf_tools import variable_summaries
 import tensorflow as tf
 
+# # Algorithm parameters
+# learning_rate = 0.0001
+# gamma = .999
+# epsilon = .2
+# epsi_decay = 1#.9999
+# lr_decay = 1# .9999
+# n_hidden = 60
+
 # Algorithm parameters
-learning_rate = 0.0001
+learning_rate = .01
 gamma = .999
-epsilon = .2
-epsi_decay = 1#.9999
-lr_decay = 1# .9999
-n_hidden = 60
+epsilon = .5
+epsi_decay = .9999
+lr_decay = .999
+n_hidden = 50
 
 # General parameters
 render = False
 # render = True
-N_print_every = 100
+N_print_every = 10
 N_trial = 1000
 N_trial_test = 100
 trial_duration = 200
@@ -34,8 +42,8 @@ env = gym.make("Pong-v0")
 # dim_state = env.observation_space.high.__len__()
 dim_state = 6  # after preprocessing it's 6
 # n_action = env.action_space.n
-n_action = 3
-action_list = [0, 2, 3]  # only 3 controls used
+n_action = 2
+action_list = [2, 3]  # only 2 controls used (UP and DOWN)
 
 
 def iterate_minibatches(exp_mem, shuffle=False, batchsize=32):
@@ -72,13 +80,13 @@ bh = tf.Variable(initial_value=bh0, trainable=True, name='hidden_bias')
 a_y = tf.matmul(state_holder, wh, name='output_activation') + bh
 y = tf.nn.relu(a_y, name='hidden_layer_activation')
 a_z = tf.matmul(y, w, name='output_activation') + b
-Q = - tf.sigmoid(a_z, name='Q_model')
+Q = -tf.nn.softmax(a_z, name='Q_model')
 
 # Q function at the next step
 next_a_y = tf.matmul(next_state_holder, wh, name='next_step_output_activation') + bh
 next_y = tf.nn.relu(next_a_y, name='next_step_hidden_layer_activation')
 next_a_z = tf.matmul(next_y, w, name='next_step_output_activation') + b
-next_Q = - tf.nn.sigmoid(next_a_z, name='next_step_Q_model')
+next_Q = -tf.nn.softmax(next_a_z, name='next_step_Q_model')
 
 # Define symbolic variables that will carry information needed for training
 action_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_action, 1), name='symbolic_action')
@@ -153,7 +161,7 @@ for k in range(N_trial + N_trial_test):
     exp_mem = []
     # for t in range(trial_duration):
     while True:
-        if render and k > 100: env.render()
+        if render and k > 150: env.render()
 
         new_observation, reward, done, info = env.step(action)  # Take the action
         steps += 1
@@ -184,32 +192,27 @@ for k in range(N_trial + N_trial_test):
             break  # Stop the trial when the environment says it is done
 
         t += 1
-        # mb_size = len(exp_mem)
 
-    mb_size = 16
+    mb_size = 32
+    exp_mem_trials = exp_mem_trials[-50:]
 
-    # if len(exp_mem) >= mb_size and t % mb_size == 0:
-    if steps > 50000 and k > mb_size and k % mb_size == 0:
-        # print("len of exp_mem_trials", len(exp_mem_trials))
-        print("Learning after", steps, "steps and", k, "games", end="")
-        # exp_mem = exp_mem[-150000:]
+    if len(exp_mem_trials) >= 50 and k % mb_size == 0:
 
         for i, batch in enumerate(iterate_minibatches(exp_mem_trials, shuffle=True, batchsize=1)):
 
-            print(".", end="")
             if i >= mb_size:  # learn for i mini batches
-                print("done")
                 break
-            # print("len of mini batch", len(batch))
+
             minibatch_zip_ = batch[0]
-            # minibatch_zip_ = exp_mem
             minibatch_zip = copy.deepcopy(minibatch_zip_)
             mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
             batch_len = len(mb_obs)
-            # print("mb_rew", mb_rew)
+
             mb_rew_sum = sum([r[0] for r in mb_rew])
-            # print("learning with reward", mb_rew_sum)
-            mb_rew = [mb_rew_sum for i in range(batch_len)]
+
+            if mb_rew_sum > 0:
+                mb_rew = [(mb_rew_sum,) for i in range(batch_len)]
+
             mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
             mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
             mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
@@ -228,16 +231,14 @@ for k in range(N_trial + N_trial_test):
                 learning_rate_holder: learning_rate})
             train_writer.add_summary(summary, steps)
 
-        # if learning_rate > 1e-3:
-        #     learning_rate *= lr_decay
-        # else:
-        #     learning_rate = 1e-3
-        # if epsilon > 0.1:
-        #     epsilon *= epsi_decay
-        # else:
-        #     epsilon = 0.1
-
-
+        if learning_rate > 1e-4:
+            learning_rate *= lr_decay
+        else:
+            learning_rate = 1e-4
+        if epsilon > 0.2:
+            epsilon *= epsi_decay
+        else:
+            epsilon = 0.2
 
     # Stack values for monitoring
     err_list.append(np.mean(trial_err_list))
