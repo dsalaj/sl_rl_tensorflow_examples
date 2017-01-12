@@ -207,7 +207,7 @@ def policy(state):
     if rd.rand() < epsilon:
         return rd.choice(n_action)
 
-    Q_values = sess.run(Q, feed_dict={state_holder: state.reshape(1, img_size, img_size, 4)})
+    Q_values = sess.run(Q, feed_dict={state_holder: state.reshape(1, img_size, img_size, input_ch_num)})
     val = np.max(Q_values[0, :])
     max_indices = np.where(Q_values[0, 0, :] == val)[0]
     a = rd.choice(max_indices)
