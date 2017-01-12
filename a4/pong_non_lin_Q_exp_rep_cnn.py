@@ -23,7 +23,7 @@ import tensorflow as tf
 
 
 #DQN Paper parameters
-observe_steps = 50000
+observe_steps = 8000
 explore_steps = 1000000
 min_epsilon = 0.1
 init_epsilon = 1.
@@ -157,6 +157,9 @@ b_fc1 = bias_variable([256])
 w_out = weight_variable([256, out_size])
 b_out = bias_variable([out_size])
 
+
+
+
 # Generate the symbolic variables to hold the state values
 state_holder = tf.placeholder(dtype=tf.float32, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
 next_state_holder = tf.placeholder(dtype=tf.float32, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
@@ -188,6 +191,14 @@ training_step = tf.train.RMSPropOptimizer(learning_rate=0.00025, decay=0.99, mom
 
 sess = tf.Session()  # FOR NOW everything is symbolic, this object has to be called to compute each value of Q
 sess.run(tf.initialize_all_variables())
+
+saver = tf.train.Saver()
+checkpoint = tf.train.get_checkpoint_state("saved_networks")
+if checkpoint and checkpoint.model_checkpoint_path:
+        saver.restore(sess, checkpoint.model_checkpoint_path)
+        print("Loaded weights from:", checkpoint.model_checkpoint_path)
+else:
+        print("Weights were initialised randomly.")
 
 suffix = time.strftime('%Y-%m-%d--%H-%M-%S')
 train_writer = tf.train.SummaryWriter('tensorboard/cartpole/{}'.format(suffix) + '/train', sess.graph)
@@ -271,6 +282,7 @@ for k in range(N_trial + N_trial_test):
             obs3 = obs4
             pro_observation = pro_new_observation  # Pass the new state to the next step
             action = policy(pro_observation)
+            acc_reward += reward
             if done:
                 # print("done")
                 break  # Stop the trial when the environment says it is done
@@ -370,6 +382,11 @@ for k in range(N_trial + N_trial_test):
         action = policy(pro_observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
 
+        if frames_processed % 10000 == 0:
+            #PARL - Playing Atari with reinforcement learning
+            print("Exporting network to: ", 'saved_networks/' + 'network' + '-parl')
+            saver.save(sess, 'saved_networks/' + 'network' + '-parl', global_step=frames_processed)
+
         if done:
             break  # Stop the trial when the environment says it is done
 
@@ -380,7 +397,9 @@ for k in range(N_trial + N_trial_test):
     time_list.append(t + 1)
     reward_list.append(acc_reward)  # Store the result
 
-    if(frames_processed > explore_steps):
+    # save network every 100000 iteration
+
+    if(frames_processed > observe_steps):
         print_results(k, time_list, err_list, reward_list, N_print_every=N_print_every)
 
 plot_results(N_trial, N_trial_test, reward_list, time_list, err_list)
