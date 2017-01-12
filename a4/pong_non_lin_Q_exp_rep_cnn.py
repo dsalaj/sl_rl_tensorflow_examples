@@ -8,7 +8,7 @@ import numpy as np
 import numpy.random as rd
 import matplotlib.pyplot as plt
 from gym.envs.classic_control.cartpole import CartPoleEnv
-from pong_tools import prepro
+from image_tools import prepro_14
 from cartpole_utils import plot_results,print_results
 from tf_tools import variable_summaries
 import tensorflow as tf
@@ -34,7 +34,7 @@ gamma = 0.95
 replay_memory_size = 1000000
 mb_size = 32
 
-n_hidden = 32
+
 
 # General parameters
 render = False
@@ -48,10 +48,21 @@ trial_duration = 200
 env = gym.make("Pong-v0")
 # dim_state = env.observation_space.high.__len__()
 dim_state = 6  # after preprocessing it's 6
-# n_action = env.action_space.n
-n_action = 3
-action_list = [0, 2, 3]  # only 3 controls used
+n_action = env.action_space.n
+# action list should be same for all games
+# n_action = 3
+# action_list = [0, 2, 3]  # only 3 controls used
+print("Number of valid actions: ", n_action)
 
+
+img_size = 84
+input_ch_num = 2
+conv1_filter_size = 8
+conv2_filter_size = 4
+conv1_feature_maps_num = 16
+conv2_feature_maps_num = 32
+fc1_size = 256
+out_size = 6
 
 def iterate_minibatches(exp_mem, shuffle=False, batchsize=32):
     if shuffle:
@@ -65,6 +76,34 @@ def iterate_minibatches(exp_mem, shuffle=False, batchsize=32):
 
         exp_mem_yield = [exp_mem[i] for i in excerpt]
         yield exp_mem_yield
+
+# Functions for initializing parameters of the network
+#Reference: https://www.tensorflow.org/tutorials/mnist/pros/
+#----------------------------------------------------------
+def weight_variable(shape):
+    initial = tf.truncated_normal(shape, stddev=0.1)
+    return tf.Variable(initial)
+
+def bias_variable(shape):
+    initial = tf.constant(0.1, shape=shape)
+    return tf.Variable(initial)
+
+# Input N×N
+# convolutional layer with filter size m×m, stride s
+# output will be of size (N−m)/s + 1 × (N−m)/s + 1
+def calc_convout_size(input_size, filter_size, stride):
+    return (input_size - filter_size) / stride + 1
+
+def get_out(input, name):
+    conv1 = tf.nn.relu(tf.nn.conv2d(input, w_conv1, strides=[1, 4, 4, 1], padding='VALID') + b_conv1, name=name+"_conv1")
+    conv2 = tf.nn.relu(tf.nn.conv2d(conv1, w_conv2, strides=[1, 2, 2, 1], padding='VALID') + b_conv2, name=name+"_conv2")
+
+    conv2_flat = tf.reshape(conv2, [-1, conv2_out_size * conv2_out_size * conv2_feature_maps_num])
+    fc1 = tf.nn.relu(tf.matmul(conv2_flat, w_fc1) + b_fc1, name=name+"_fc1")
+    Q = tf.matmul(fc1, w_out) + b_out
+    return Q
+
+#----------------------------------------------------------
 
 # wh0 = np.float32(rd.normal(loc=0.0, scale=1. / np.sqrt(dim_state), size=(dim_state, n_hidden)))
 # bh0 = np.zeros(n_hidden, dtype=np.float32)
@@ -97,46 +136,33 @@ def iterate_minibatches(exp_mem, shuffle=False, batchsize=32):
 
 
 # Initialize the parameters of the Q model
-wh1 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(dim_state), size=(n_hidden, n_hidden)))
-bh1 = np.zeros(n_hidden, dtype=np.float32)
-wh0 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(dim_state), size=(dim_state, n_hidden)))
-bh0 = np.zeros(n_hidden, dtype=np.float32)
-w0 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(n_hidden), size=(n_hidden, n_action)))
-b0 = np.zeros(n_action, dtype=np.float32)
+# wh1 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(dim_state), size=(n_hidden, n_hidden)))
+# bh1 = np.zeros(n_hidden, dtype=np.float32)
+# wh0 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(dim_state), size=(dim_state, n_hidden)))
+# bh0 = np.zeros(n_hidden, dtype=np.float32)
+# w0 = np.float32(rd.normal(loc=0.0, scale=1./np.sqrt(n_hidden), size=(n_hidden, n_action)))
+# b0 = np.zeros(n_action, dtype=np.float32)
+
+# Initialize the parameters of the Q model
+w_conv1 = weight_variable([conv1_filter_size, conv1_filter_size, input_ch_num, conv1_feature_maps_num])
+b_conv1 = bias_variable([conv1_feature_maps_num])
+w_conv2 = weight_variable([conv2_filter_size, conv2_filter_size, 16, conv2_feature_maps_num])
+b_conv2 = bias_variable([conv2_feature_maps_num])
+
+conv1_out_size = int(calc_convout_size(img_size, conv1_filter_size, 4))
+conv2_out_size = int(calc_convout_size(conv1_out_size, conv2_filter_size, 2))
+print("conv out size: ", conv2_out_size)
+w_fc1 = weight_variable([conv2_out_size * conv2_out_size * conv2_feature_maps_num, 256])
+b_fc1 = bias_variable([256])
+w_out = weight_variable([256, out_size])
+b_out = bias_variable([out_size])
 
 # Generate the symbolic variables to hold the state values
-state_holder = tf.placeholder(dtype=tf.float32, shape=(None, dim_state), name='symbolic_state')
-next_state_holder = tf.placeholder(dtype=tf.float32, shape=(None, dim_state), name='symbolic_state')
+state_holder = tf.placeholder(dtype=tf.float32, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
+next_state_holder = tf.placeholder(dtype=tf.float32, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
 
-# Create the parameters of the Q model
-w = tf.Variable(initial_value=w0, trainable=True, name='weight_variable')
-b = tf.Variable(tf.constant(0.1, shape=[n_action]), trainable=True, name='bias')
-wh = tf.Variable(initial_value=wh0, trainable=True, name='hidden_weight_variable')
-bh = tf.Variable(tf.constant(0.1, shape=[n_hidden]), trainable=True, name='hidden_bias')
-wh1 = tf.Variable(initial_value=wh1, trainable=True, name='hidden_weight_variable1')
-bh1 = tf.Variable(tf.constant(0.1, shape=[n_hidden]), trainable=True, name='hidden_bias1')
-
-
-
-# Q function at the current step
-a_y = tf.matmul(state_holder, wh, name='output_activation') + bh
-y = tf.nn.relu(a_y, name='hidden_layer_activation')
-a_y1 = tf.matmul(y, wh1, name='output_activation') + bh1
-y1 = tf.nn.relu(a_y1, name='hidden_layer_activation')
-a_z1 = tf.matmul(y1, w, name='output_activation') + b
-
-# Q = tf.nn.tanh(a_z1, name='Q_model')
-Q = a_z1
-
-# Q function at the next step
-next_a_y = tf.matmul(next_state_holder, wh, name='next_step_output_activation') + bh
-next_y = tf.nn.relu(next_a_y, name='next_step_hidden_layer_activation')
-next_a_y1 = tf.matmul(next_y, wh1, name='next_step_output_activation') + bh1
-next_y1 = tf.nn.relu(next_a_y1, name='next_step_hidden_layer_activation')
-next_a_z1 = tf.matmul(next_y1, w, name='next_step_output_activation') + b
-
-# next_Q = tf.nn.tanh(next_a_z1, name='next_step_Q_model')
-next_Q = next_a_z1
+Q = get_out(state_holder, "Q")
+next_Q = get_out(next_state_holder, "next_Q")
 
 # Define symbolic variables that will carry information needed for training
 action_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_action, 1), name='symbolic_action')
@@ -179,12 +205,12 @@ def policy(state):
     :return:
     """
     if rd.rand() < epsilon:
-        return rd.choice(action_list)
+        return rd.choice(n_action)
 
-    Q_values = sess.run(Q, feed_dict={state_holder: state.reshape(1, dim_state)})
+    Q_values = sess.run(Q, feed_dict={state_holder: state.reshape(1, img_size, img_size, 4)})
     val = np.max(Q_values[0, :])
     max_indices = np.where(Q_values[0, 0, :] == val)[0]
-    a = action_list[rd.choice(max_indices)]
+    a = rd.choice(max_indices)
     return a
 
 
@@ -197,15 +223,16 @@ skip_counter = 0
 frames_processed = 0
 
 for k in range(N_trial + N_trial_test):
-    if k % 10000 == 0:
-        print("Current iter k: ", k)
+    # if k % 10000 == 0:
+    print("Current iter k: ", k)
     if k > N_trial:
         epsilon = 0
         learning_rate = 0
 
     acc_reward = 0  # Init the accumulated reward
-    observation = new_observation = env.reset()  # Init the state
-    pro_observation = prepro(observation, new_observation)
+    obs1 = obs2 = obs3 = obs4 = env.reset()  # Init the state
+    # pro_observation = prepro(obs1, obs2, obs3, obs4)
+    pro_observation = prepro_14(obs1, obs4)
     action = policy(pro_observation)  # Init the first action
 
     trial_err_list = []
@@ -221,26 +248,31 @@ for k in range(N_trial + N_trial_test):
         if (frames_processed == observe_steps + explore_steps):
             print("Start TRAINING...")
 
-        new_observation, reward, done, info = env.step(action)  # Take the action
+        obs4, reward, done, info = env.step(action)  # Take the action
+        # print("rew done", reward, done)
+        # plt.imshow(obs4)
+        # plt.show()
         # rms
         # reward *= 10
-        pro_new_observation = prepro(observation, new_observation)
 
-        # print(pro_observation)
-        # print(pro_new_observation)
-        # print("-------------")
+        # pro_new_observation = prepro(obs1, obs2, obs3, obs4)
+        pro_new_observation = prepro_14(obs1, obs4)
 
-        # if(reward != 0):
-        #
-        exp_mem.append(list(zip((pro_observation, pro_new_observation, action_list.index(action), reward, done))))
+        # plt.imshow(pro_new_observation[:,:,3], cmap='gray')
+        # plt.show()
+
+        exp_mem.append(list(zip((pro_observation, pro_new_observation, action, reward, done))))
         frames_processed += 1
 
 
         if frames_processed < observe_steps:
-            observation = new_observation  # Pass the new state to the next step
+            obs1 = obs2
+            obs2 = obs3
+            obs3 = obs4
             pro_observation = pro_new_observation  # Pass the new state to the next step
             action = policy(pro_observation)
             if done:
+                # print("done")
                 break  # Stop the trial when the environment says it is done
             continue
 
@@ -270,40 +302,41 @@ for k in range(N_trial + N_trial_test):
         # if done or reward != 0:
         # if len(exp_mem) >= mb_size * 2:
         if True:
-            for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
+            # for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
+            batch = random.sample(exp_mem, mb_size)
+            # print("--------------------------------")
+            # print(batch)
+            # print("--------------------------------")
+            # if i > 5:  # learn for 5 mini batches
+            #     break
 
-                # print("--------------------------------")
-                # print(batch)
-                # print("--------------------------------")
-                # if i > 5:  # learn for 5 mini batches
-                #     break
+            minibatch_zip_ = batch
+            minibatch_zip = copy.deepcopy(minibatch_zip_)
+            mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
 
-                minibatch_zip_ = batch
-                minibatch_zip = copy.deepcopy(minibatch_zip_)
-                mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
+            mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
+            mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
+            mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
+            mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
+            mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
+            one_hot_actions = np.zeros((mb_size, n_action))
+            one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1
+            # Perform one step of gradient descent
 
-                mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
-                mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
-                mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
-                mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
-                mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
-                one_hot_actions = np.zeros((mb_size, n_action))
-                one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1
+            summary, _ = sess.run([merged, training_step], feed_dict={
+                state_holder: mb_obs.reshape(-1, img_size,img_size,input_ch_num),
+                next_state_holder: mb_nob.reshape(-1, img_size,img_size,input_ch_num),
+                action_holder: one_hot_actions.reshape(-1, n_action, 1),
+                is_done_holder: mb_don.reshape(-1,),
+                r_holder: mb_rew.reshape(-1, 1, 1),
+                learning_rate_holder: learning_rate})
+            train_writer.add_summary(summary, k*trial_duration + t)
 
-                # Perform one step of gradient descent
-                summary, _ = sess.run([merged, training_step], feed_dict={
-                    state_holder: mb_obs.reshape(-1, dim_state),
-                    next_state_holder: mb_nob.reshape(-1, dim_state),
-                    action_holder: one_hot_actions.reshape(-1, n_action, 1),
-                    is_done_holder: mb_don.reshape(-1,),
-                    r_holder: mb_rew.reshape(-1, 1, 1),
-                    learning_rate_holder: learning_rate})
-                train_writer.add_summary(summary, k*trial_duration + t)
-
-                #TODO maybe train one batch per iteration (break), maybe more
-                # if i > 5:
-                #     break
-                break
+            #TODO maybe train one batch per iteration (break), maybe more
+            # Change to iterate_minibatches for more minibatches
+            # if i > 5:
+            #     break
+            #break
 
             # if learning_rate > 1e-4:
             #     learning_rate *= lr_decay
@@ -318,18 +351,21 @@ for k in range(N_trial + N_trial_test):
             # exp_mem = []
 
         one_hot_action = np.zeros((1, n_action))
-        one_hot_action[0, action_list.index(action)] = 1
+        one_hot_action[0, action] = 1
         # Compute the Bellman Error for monitoring
         err = sess.run(error, feed_dict={
-            state_holder: pro_observation.reshape(-1, dim_state),
-            next_state_holder: pro_new_observation.reshape(-1, dim_state),
+            state_holder: pro_observation.reshape((-1,img_size,img_size,input_ch_num)),
+            next_state_holder: pro_new_observation.reshape((-1,img_size,img_size,input_ch_num)),
             action_holder: one_hot_action.reshape(-1, n_action, 1),
             is_done_holder: np.array(done).reshape(-1,),
             r_holder: np.array(reward).reshape(-1, 1, 1)})
         # Add the error in a trial-specific list of errors
         trial_err_list.append(err)
 
-        observation = new_observation  # Pass the new state to the next step
+        # Pass the new state to the next step
+        obs1 = obs2
+        obs2 = obs3
+        obs3 = obs4
         pro_observation = pro_new_observation  # Pass the new state to the next step
         action = policy(pro_observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import misc
 
 def get_all_coords(I):
     I = I[35:195]  # crop
@@ -21,9 +22,29 @@ def get_all_coords(I):
     # return self_x, self_y, opponent_x, opponent_y, ball_x, ball_y
 
 
+
+def rgb2gray(I):
+    return np.dot(I[...,:3], [0.299, 0.587, 0.114])
+
+def crop(I):
+    I_p = rgb2gray(I)
+    I_p = misc.imresize(I_p, (110,84))
+    I_p = I_p[26:110]
+    return I_p
+
 # downsampling
 def prepro(I1, I2, I3, I4):
     """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
     I1_p = crop(I1)
-    opp_rel_y_prev, ball_rel_x_prev, ball_rel_y_prev = get_all_coords(I_prev)
-    return np.array([opp_rel_y, ball_rel_x, ball_rel_y, opp_rel_y_prev, ball_rel_x_prev, ball_rel_y_prev])
+    I2_p = crop(I2)
+    I3_p = crop(I3)
+    I4_p = crop(I4)
+
+    return np.stack((I1_p, I2_p, I3_p, I4_p), axis = 2)  #np.array([I1_p,I2_p,I3_p,I4_p])
+
+def prepro_14(I1, I4):
+    """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
+    I1_p = crop(I1)
+    I4_p = crop(I4)
+
+    return np.stack((I1_p, I4_p), axis = 2)

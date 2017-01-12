@@ -30,7 +30,7 @@ import tensorflow as tf
 learning_rate = 2e-1
 gamma = .9
 epsilon = .5
-epsi_decay = .9999
+epsi_decay = .999
 lr_decay = .9999
 n_hidden = 20
 
