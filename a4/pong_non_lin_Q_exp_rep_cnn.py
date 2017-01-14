@@ -7,7 +7,6 @@ import random
 import numpy as np
 import numpy.random as rd
 import matplotlib.pyplot as plt
-from gym.envs.classic_control.cartpole import CartPoleEnv
 from image_tools import prepro_14
 from cartpole_utils import plot_results,print_results
 from tf_tools import variable_summaries
@@ -24,14 +23,14 @@ import tensorflow as tf
 
 #DQN Paper parameters
 observe_steps = 50000
-explore_steps = 1000000
+explore_steps = 200000
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
 learning_rate = 0.00025
 lr_decay = 0.99
 gamma = 0.95
-replay_memory_size = 1000000
+replay_memory_size = 200000
 mb_size = 32
 
 
@@ -62,7 +61,7 @@ conv2_filter_size = 4
 conv1_feature_maps_num = 16
 conv2_feature_maps_num = 32
 fc1_size = 256
-out_size = 6
+out_size = n_action
 
 def iterate_minibatches(exp_mem, shuffle=False, batchsize=32):
     if shuffle:
@@ -94,9 +93,11 @@ def bias_variable(shape):
 def calc_convout_size(input_size, filter_size, stride):
     return (input_size - filter_size) / stride + 1
 
-def get_out(input, name):
-    conv1 = tf.nn.relu(tf.nn.conv2d(input, w_conv1, strides=[1, 4, 4, 1], padding='VALID') + b_conv1, name=name+"_conv1")
+def get_out(input_, name):
+    conv1 = tf.nn.relu(tf.nn.conv2d(input_, w_conv1, strides=[1, 4, 4, 1], padding='VALID') + b_conv1, name=name+"_conv1")
+    # conv1 = tf.nn.batch_normalization(conv1)
     conv2 = tf.nn.relu(tf.nn.conv2d(conv1, w_conv2, strides=[1, 2, 2, 1], padding='VALID') + b_conv2, name=name+"_conv2")
+    # conv2 = tf.nn.batch_normalization(conv2)
 
     conv2_flat = tf.reshape(conv2, [-1, conv2_out_size * conv2_out_size * conv2_feature_maps_num])
     fc1 = tf.nn.relu(tf.matmul(conv2_flat, w_fc1) + b_fc1, name=name+"_fc1")
@@ -178,16 +179,18 @@ R = tf.batch_matmul(Q, action_holder)
 # variable_summaries(R, '/R')
 
 gamma_rew = tf.reshape(gamma * tf.reduce_max(next_Q, reduction_indices=1) * (1 - is_done_holder), (-1, 1, 1))
+# gamma_rew = tf.reshape(gamma * tf.reduce_max(next_Q, reduction_indices=1)
+#  * (1 - tf.abs(tf.reshape(r_holder,(-1,)))), (-1, 1, 1))
 next_R = r_holder + gamma_rew
 # variable_summaries(next_R, '/next_R')
 
-error = tf.reduce_mean((R - next_R)**2)
+error = tf.reduce_mean(tf.square((R - next_R)))
 variable_summaries(error, '/error')
 
 # Define the operation that performs the optimization
 learning_rate_holder = tf.placeholder(dtype=tf.float32, name='symbolic_state')
-training_step = tf.train.RMSPropOptimizer(learning_rate=0.00025, decay=0.99, momentum=0.0, epsilon=1e-6).minimize(error)
-# training_step = tf.train.GradientDescentOptimizer(learning_rate_holder).minimize(error)
+# training_step = tf.train.RMSPropOptimizer(learning_rate=0.1, decay=0.99, momentum=0.0, epsilon=1e-6).minimize(error)
+training_step = tf.train.GradientDescentOptimizer(learning_rate_holder).minimize(error)
 
 sess = tf.Session()  # FOR NOW everything is symbolic, this object has to be called to compute each value of Q
 sess.run(tf.initialize_all_variables())
@@ -234,8 +237,8 @@ skip_counter = 0
 frames_processed = 0
 
 for k in range(N_trial + N_trial_test):
-    # if k % 10000 == 0:
-    print("Current iter k: ", k)
+    if k % 10000 == 0:
+	    print("Current iter k: ", k)
     if k > N_trial:
         epsilon = 0
         learning_rate = 0
@@ -269,8 +272,16 @@ for k in range(N_trial + N_trial_test):
         # pro_new_observation = prepro(obs1, obs2, obs3, obs4)
         pro_new_observation = prepro_14(obs1, obs4)
 
+
         # plt.imshow(pro_new_observation[:,:,3], cmap='gray')
         # plt.show()
+        # print("max pro: ", np.min(pro_new_observation[:,:,1]))
+        # plt.figure(10);
+        # plt.clf()
+        # plt.imshow(pro_new_observation[:,:,1], cmap='gray');
+        # plt.title('Camera Frame')
+        # plt.pause(0.00001)
+
 
         exp_mem.append(list(zip((pro_observation, pro_new_observation, action, reward, done))))
         frames_processed += 1
@@ -350,11 +361,11 @@ for k in range(N_trial + N_trial_test):
             #     break
             #break
 
-            # if learning_rate > 1e-4:
-            #     learning_rate *= lr_decay
-            # else:
-            #     learning_rate = 1e-4
-            # learning_rate *= lr_decay
+            if learning_rate > 1e-4:
+                learning_rate *= lr_decay
+            else:
+                learning_rate = 1e-4
+            learning_rate *= lr_decay
             if epsilon > 0.1 and frames_processed < explore_steps + observe_steps:
                 epsilon -= (init_epsilon - min_epsilon) / explore_steps
             else:
@@ -382,7 +393,7 @@ for k in range(N_trial + N_trial_test):
         action = policy(pro_observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
 
-        if frames_processed % 10000 == 0:
+        if frames_processed % 10000 == 0 and frames_processed > observe_steps:
             #PARL - Playing Atari with reinforcement learning
             print("Exporting network to: ", 'saved_networks/' + 'network' + '-parl')
             saver.save(sess, 'saved_networks/' + 'network' + '-parl', global_step=frames_processed)
