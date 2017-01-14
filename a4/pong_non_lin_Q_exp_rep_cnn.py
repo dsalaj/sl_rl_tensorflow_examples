@@ -189,8 +189,8 @@ variable_summaries(error, '/error')
 
 # Define the operation that performs the optimization
 learning_rate_holder = tf.placeholder(dtype=tf.float32, name='symbolic_state')
-# training_step = tf.train.RMSPropOptimizer(learning_rate=0.1, decay=0.99, momentum=0.0, epsilon=1e-6).minimize(error)
-training_step = tf.train.GradientDescentOptimizer(learning_rate_holder).minimize(error)
+training_step = tf.train.RMSPropOptimizer(learning_rate=0.001, decay=0.99, momentum=0.0, epsilon=1e-6).minimize(error)
+# training_step = tf.train.GradientDescentOptimizer(learning_rate_holder).minimize(error)
 
 sess = tf.Session()  # FOR NOW everything is symbolic, this object has to be called to compute each value of Q
 sess.run(tf.initialize_all_variables())
@@ -318,6 +318,7 @@ for k in range(N_trial + N_trial_test):
             # print("Current learning rate: ", learning_rate)
             print("Current epsilon: ", epsilon)
             print("Memory Length: ", len(exp_mem))
+            print("Frames processed: ", frames_processed)
             if(len(err_list) > 0):
                 print("Last error: ", err_list[-1])
 
@@ -410,7 +411,7 @@ for k in range(N_trial + N_trial_test):
 
     # save network every 100000 iteration
 
-    if(frames_processed > observe_steps):
+    if(frames_processed > observe_steps and len(err_list) != 0):
         print_results(k, time_list, err_list, reward_list, N_print_every=N_print_every)
 
 plot_results(N_trial, N_trial_test, reward_list, time_list, err_list)

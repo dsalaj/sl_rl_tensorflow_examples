@@ -30,7 +30,7 @@ def crop(I):
     I_p = rgb2gray(I)
     I_p = misc.imresize(I_p, (110,84))
     I_p = I_p[26:110]
-    I_p = I_p / 255
+    I_p = I_p / 255.
     return I_p
 
 # downsampling
@@ -48,4 +48,4 @@ def prepro_14(I1, I4):
     I1_p = crop(I1)
     I4_p = crop(I4)
 
-    return np.stack((I1_p, I4_p), axis = 2)
+    return np.stack((I1_p, I4_p), axis = 2).astype(np.float32)
