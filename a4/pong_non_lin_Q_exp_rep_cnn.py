@@ -30,7 +30,7 @@ epsilon = 1.
 learning_rate = 0.00025
 lr_decay = 0.99
 gamma = 0.95
-replay_memory_size = 200000
+replay_memory_size = 50000
 mb_size = 32
 
 
@@ -41,7 +41,7 @@ render = False
 N_print_every = 10
 N_trial = 1000000
 N_trial_test = 100
-trial_duration = 200
+# trial_duration = 200
 
 # Generate the environment
 env = gym.make("Pong-v0")
@@ -60,6 +60,9 @@ conv1_filter_size = 8
 conv2_filter_size = 4
 conv1_feature_maps_num = 16
 conv2_feature_maps_num = 32
+# conv1_feature_maps_num = 32
+# conv2_feature_maps_num = 64
+# conv3_feature_maps_num = 64
 fc1_size = 256
 out_size = n_action
 
@@ -103,6 +106,19 @@ def get_out(input_, name):
     fc1 = tf.nn.relu(tf.matmul(conv2_flat, w_fc1) + b_fc1, name=name+"_fc1")
     Q = tf.matmul(fc1, w_out) + b_out
     return Q
+
+
+def get_out_new(input_, name):
+    conv1 = tf.nn.relu(tf.nn.conv2d(input_, w_conv1, strides=[1, 4, 4, 1], padding='VALID') + b_conv1, name=name+"_conv1")
+    # conv1 = tf.nn.batch_normalization(conv1)
+    conv2 = tf.nn.relu(tf.nn.conv2d(conv1, w_conv2, strides=[1, 2, 2, 1], padding='VALID') + b_conv2, name=name+"_conv2")
+    # conv2 = tf.nn.batch_normalization(conv2)
+
+    conv2_flat = tf.reshape(conv2, [-1, conv2_out_size * conv2_out_size * conv2_feature_maps_num])
+    fc1 = tf.nn.relu(tf.matmul(conv2_flat, w_fc1) + b_fc1, name=name+"_fc1")
+    Q = tf.matmul(fc1, w_out) + b_out
+    return Q
+
 
 #----------------------------------------------------------
 
@@ -235,7 +251,7 @@ val_list = []
 exp_mem = []
 skip_counter = 0
 frames_processed = 0
-
+summary_counter = 0
 for k in range(N_trial + N_trial_test):
     if k % 10000 == 0:
 	    print("Current iter k: ", k)
@@ -273,20 +289,22 @@ for k in range(N_trial + N_trial_test):
         pro_new_observation = prepro_14(obs1, obs4)
 
 
-        # plt.imshow(pro_new_observation[:,:,3], cmap='gray')
+        # plt.imshow(pro_new_observation[:,:,1], cmap='gray')
         # plt.show()
         # print("max pro: ", np.min(pro_new_observation[:,:,1]))
+        # For observing frames
         # plt.figure(10);
         # plt.clf()
         # plt.imshow(pro_new_observation[:,:,1], cmap='gray');
         # plt.title('Camera Frame')
-        # plt.pause(0.00001)
+        # plt.pause(0.3)
 
 
         exp_mem.append(list(zip((pro_observation, pro_new_observation, action, reward, done))))
         frames_processed += 1
 
-
+        if (reward != 0):
+            exp_mem[-15:][3] = reward
         if frames_processed < observe_steps:
             obs1 = obs2
             obs2 = obs3
@@ -294,6 +312,7 @@ for k in range(N_trial + N_trial_test):
             pro_observation = pro_new_observation  # Pass the new state to the next step
             action = policy(pro_observation)
             acc_reward += reward
+            t += 1
             if done:
                 # print("done")
                 break  # Stop the trial when the environment says it is done
@@ -325,7 +344,7 @@ for k in range(N_trial + N_trial_test):
         # if len(exp_mem) >= mb_size and t % mb_size == 0:
         # if done or reward != 0:
         # if len(exp_mem) >= mb_size * 2:
-        if True:
+        if reward != 0:
             # for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
             batch = random.sample(exp_mem, mb_size)
             # print("--------------------------------")
@@ -354,7 +373,8 @@ for k in range(N_trial + N_trial_test):
                 is_done_holder: mb_don.reshape(-1,),
                 r_holder: mb_rew.reshape(-1, 1, 1),
                 learning_rate_holder: learning_rate})
-            train_writer.add_summary(summary, k*trial_duration + t)
+            train_writer.add_summary(summary, summary_counter)
+            summary_counter += 1
 
             #TODO maybe train one batch per iteration (break), maybe more
             # Change to iterate_minibatches for more minibatches
@@ -362,11 +382,11 @@ for k in range(N_trial + N_trial_test):
             #     break
             #break
 
-            if learning_rate > 1e-4:
-                learning_rate *= lr_decay
-            else:
-                learning_rate = 1e-4
-            learning_rate *= lr_decay
+            # if learning_rate > 1e-4:
+            #     learning_rate *= lr_decay
+            # else:
+            #     learning_rate = 1e-4
+            # learning_rate *= lr_decay
             if epsilon > 0.1 and frames_processed < explore_steps + observe_steps:
                 epsilon -= (init_epsilon - min_epsilon) / explore_steps
             else:

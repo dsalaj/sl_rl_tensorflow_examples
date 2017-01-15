@@ -28,8 +28,8 @@ def rgb2gray(I):
 
 def crop(I):
     I_p = rgb2gray(I)
-    I_p = misc.imresize(I_p, (110,84))
-    I_p = I_p[26:110]
+    I_p = misc.imresize(I_p, (100,84))
+    I_p = I_p[13:97]
     I_p = I_p / 255.
     return I_p
 
