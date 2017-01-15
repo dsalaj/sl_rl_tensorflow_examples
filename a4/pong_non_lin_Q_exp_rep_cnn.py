@@ -200,7 +200,7 @@ gamma_rew = tf.reshape(gamma * tf.reduce_max(next_Q, reduction_indices=1) * (1 -
 next_R = r_holder + gamma_rew
 # variable_summaries(next_R, '/next_R')
 
-error = tf.reduce_mean(tf.square((R - next_R)))
+error = tf.clip_by_value(tf.reduce_mean(tf.square((R - next_R))), clip_value_min=-1., clip_value_max=1.)
 variable_summaries(error, '/error')
 
 # Define the operation that performs the optimization
@@ -363,7 +363,7 @@ for k in range(N_trial + N_trial_test):
             mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
             mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
             one_hot_actions = np.zeros((mb_size, n_action))
-            one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1
+            one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1.
             # Perform one step of gradient descent
 
             summary, _ = sess.run([merged, training_step], feed_dict={
@@ -395,7 +395,7 @@ for k in range(N_trial + N_trial_test):
             # exp_mem = []
 
         one_hot_action = np.zeros((1, n_action))
-        one_hot_action[0, action] = 1
+        one_hot_action[0, action] = 1.
         # Compute the Bellman Error for monitoring
         err = sess.run(error, feed_dict={
             state_holder: pro_observation.reshape((-1,img_size,img_size,input_ch_num)),
