@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import gym
 import time
 import copy
@@ -417,6 +418,8 @@ for k in range(N_trial + N_trial_test):
         if frames_processed % 10000 == 0 and frames_processed > observe_steps:
             #PARL - Playing Atari with reinforcement learning
             print("Exporting network to: ", 'saved_networks/' + 'network' + '-parl')
+            if not os.path.exists('saved_networks/'):
+                os.makedirs('saved_networks/')
             saver.save(sess, 'saved_networks/' + 'network' + '-parl', global_step=frames_processed)
 
         if done:
