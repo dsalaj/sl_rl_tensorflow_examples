@@ -179,8 +179,8 @@ b_out = bias_variable([out_size])
 
 
 # Generate the symbolic variables to hold the state values
-state_holder = tf.placeholder(dtype=tf.float16, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
-next_state_holder = tf.placeholder(dtype=tf.float16, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
+state_holder = tf.placeholder(dtype=tf.float32, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
+next_state_holder = tf.placeholder(dtype=tf.float32, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
 
 Q = get_out(state_holder, "Q")
 next_Q = get_out(next_state_holder, "next_Q")
@@ -359,8 +359,8 @@ for k in range(N_trial + N_trial_test):
             minibatch_zip = copy.deepcopy(minibatch_zip_)
             mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
 
-            mb_obs = np.array(mb_obs)  # [o  for o, no, a, r, d in minibatch_zip])
-            mb_nob = np.array(mb_nob)  # [no for o, no, a, r, d in minibatch_zip])
+            mb_obs = np.array(mb_obs).astype(np.float32)  # [o  for o, no, a, r, d in minibatch_zip])
+            mb_nob = np.array(mb_nob).astype(np.float32)  # [no for o, no, a, r, d in minibatch_zip])
             mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
             mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
             mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
