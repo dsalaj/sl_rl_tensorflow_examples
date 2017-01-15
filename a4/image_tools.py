@@ -48,4 +48,4 @@ def prepro_14(I1, I4):
     I1_p = crop(I1)
     I4_p = crop(I4)
 
-    return np.stack((I1_p, I4_p), axis = 2).astype(np.float32)
+    return np.stack((I1_p, I4_p), axis = 2).astype(np.float16)

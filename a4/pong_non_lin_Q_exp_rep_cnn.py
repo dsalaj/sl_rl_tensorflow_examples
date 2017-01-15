@@ -23,7 +23,7 @@ import tensorflow as tf
 
 #DQN Paper parameters
 observe_steps = 50000
-explore_steps = 200000
+explore_steps = 100000
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
@@ -39,7 +39,7 @@ mb_size = 32
 render = False
 # render = True
 N_print_every = 10
-N_trial = 1000000
+N_trial = 100000000
 N_trial_test = 100
 # trial_duration = 200
 
@@ -178,8 +178,8 @@ b_out = bias_variable([out_size])
 
 
 # Generate the symbolic variables to hold the state values
-state_holder = tf.placeholder(dtype=tf.float32, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
-next_state_holder = tf.placeholder(dtype=tf.float32, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
+state_holder = tf.placeholder(dtype=tf.float16, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
+next_state_holder = tf.placeholder(dtype=tf.float16, shape=(None, img_size, img_size, input_ch_num), name='symbolic_state')
 
 Q = get_out(state_holder, "Q")
 next_Q = get_out(next_state_holder, "next_Q")
@@ -252,6 +252,7 @@ exp_mem = []
 skip_counter = 0
 frames_processed = 0
 summary_counter = 0
+descent_steps = 0
 for k in range(N_trial + N_trial_test):
     if k % 10000 == 0:
 	    print("Current iter k: ", k)
@@ -375,6 +376,8 @@ for k in range(N_trial + N_trial_test):
                 learning_rate_holder: learning_rate})
             train_writer.add_summary(summary, summary_counter)
             summary_counter += 1
+            descent_steps += 1
+
 
             #TODO maybe train one batch per iteration (break), maybe more
             # Change to iterate_minibatches for more minibatches
@@ -387,7 +390,8 @@ for k in range(N_trial + N_trial_test):
             # else:
             #     learning_rate = 1e-4
             # learning_rate *= lr_decay
-            if epsilon > 0.1 and frames_processed < explore_steps + observe_steps:
+            # if epsilon > 0.1 and frames_processed < explore_steps + observe_steps:
+            if epsilon > 0.1:
                 epsilon -= (init_epsilon - min_epsilon) / explore_steps
             else:
                 epsilon = 0.1
@@ -414,7 +418,7 @@ for k in range(N_trial + N_trial_test):
         action = policy(pro_observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
 
-        if frames_processed % 10000 == 0 and frames_processed > observe_steps:
+        if frames_processed % 100000 == 0 and frames_processed > observe_steps:
             #PARL - Playing Atari with reinforcement learning
             print("Exporting network to: ", 'saved_networks/' + 'network' + '-parl')
             saver.save(sess, 'saved_networks/' + 'network' + '-parl', global_step=frames_processed)
