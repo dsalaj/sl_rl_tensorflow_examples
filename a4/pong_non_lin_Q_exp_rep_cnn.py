@@ -7,7 +7,6 @@ import random
 import numpy as np
 import numpy.random as rd
 import matplotlib.pyplot as plt
-from gym.envs.classic_control.cartpole import CartPoleEnv
 from image_tools import prepro_14
 from cartpole_utils import plot_results,print_results
 from tf_tools import variable_summaries
@@ -24,14 +23,14 @@ import tensorflow as tf
 
 #DQN Paper parameters
 observe_steps = 50000
-explore_steps = 1000000
+explore_steps = 200000
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
 learning_rate = 0.00025
 lr_decay = 0.99
 gamma = 0.95
-replay_memory_size = 1000000
+replay_memory_size = 50000
 mb_size = 32
 
 
@@ -42,7 +41,7 @@ render = False
 N_print_every = 10
 N_trial = 1000000
 N_trial_test = 100
-trial_duration = 200
+# trial_duration = 200
 
 # Generate the environment
 env = gym.make("Pong-v0")
@@ -61,8 +60,11 @@ conv1_filter_size = 8
 conv2_filter_size = 4
 conv1_feature_maps_num = 16
 conv2_feature_maps_num = 32
+# conv1_feature_maps_num = 32
+# conv2_feature_maps_num = 64
+# conv3_feature_maps_num = 64
 fc1_size = 256
-out_size = 6
+out_size = n_action
 
 def iterate_minibatches(exp_mem, shuffle=False, batchsize=32):
     if shuffle:
@@ -94,14 +96,29 @@ def bias_variable(shape):
 def calc_convout_size(input_size, filter_size, stride):
     return (input_size - filter_size) / stride + 1
 
-def get_out(input, name):
-    conv1 = tf.nn.relu(tf.nn.conv2d(input, w_conv1, strides=[1, 4, 4, 1], padding='VALID') + b_conv1, name=name+"_conv1")
+def get_out(input_, name):
+    conv1 = tf.nn.relu(tf.nn.conv2d(input_, w_conv1, strides=[1, 4, 4, 1], padding='VALID') + b_conv1, name=name+"_conv1")
+    # conv1 = tf.nn.batch_normalization(conv1)
     conv2 = tf.nn.relu(tf.nn.conv2d(conv1, w_conv2, strides=[1, 2, 2, 1], padding='VALID') + b_conv2, name=name+"_conv2")
+    # conv2 = tf.nn.batch_normalization(conv2)
 
     conv2_flat = tf.reshape(conv2, [-1, conv2_out_size * conv2_out_size * conv2_feature_maps_num])
     fc1 = tf.nn.relu(tf.matmul(conv2_flat, w_fc1) + b_fc1, name=name+"_fc1")
     Q = tf.matmul(fc1, w_out) + b_out
     return Q
+
+
+def get_out_new(input_, name):
+    conv1 = tf.nn.relu(tf.nn.conv2d(input_, w_conv1, strides=[1, 4, 4, 1], padding='VALID') + b_conv1, name=name+"_conv1")
+    # conv1 = tf.nn.batch_normalization(conv1)
+    conv2 = tf.nn.relu(tf.nn.conv2d(conv1, w_conv2, strides=[1, 2, 2, 1], padding='VALID') + b_conv2, name=name+"_conv2")
+    # conv2 = tf.nn.batch_normalization(conv2)
+
+    conv2_flat = tf.reshape(conv2, [-1, conv2_out_size * conv2_out_size * conv2_feature_maps_num])
+    fc1 = tf.nn.relu(tf.matmul(conv2_flat, w_fc1) + b_fc1, name=name+"_fc1")
+    Q = tf.matmul(fc1, w_out) + b_out
+    return Q
+
 
 #----------------------------------------------------------
 
@@ -178,15 +195,17 @@ R = tf.batch_matmul(Q, action_holder)
 # variable_summaries(R, '/R')
 
 gamma_rew = tf.reshape(gamma * tf.reduce_max(next_Q, reduction_indices=1) * (1 - is_done_holder), (-1, 1, 1))
+# gamma_rew = tf.reshape(gamma * tf.reduce_max(next_Q, reduction_indices=1)
+#  * (1 - tf.abs(tf.reshape(r_holder,(-1,)))), (-1, 1, 1))
 next_R = r_holder + gamma_rew
 # variable_summaries(next_R, '/next_R')
 
-error = tf.reduce_mean((R - next_R)**2)
+error = tf.clip_by_value(tf.reduce_mean(tf.square((R - next_R))), clip_value_min=-1., clip_value_max=1.)
 variable_summaries(error, '/error')
 
 # Define the operation that performs the optimization
 learning_rate_holder = tf.placeholder(dtype=tf.float32, name='symbolic_state')
-training_step = tf.train.RMSPropOptimizer(learning_rate=0.00025, decay=0.99, momentum=0.0, epsilon=1e-6).minimize(error)
+training_step = tf.train.RMSPropOptimizer(learning_rate=0.001, decay=0.99, momentum=0.0, epsilon=1e-6).minimize(error)
 # training_step = tf.train.GradientDescentOptimizer(learning_rate_holder).minimize(error)
 
 sess = tf.Session()  # FOR NOW everything is symbolic, this object has to be called to compute each value of Q
@@ -232,10 +251,10 @@ val_list = []
 exp_mem = []
 skip_counter = 0
 frames_processed = 0
-
+summary_counter = 0
 for k in range(N_trial + N_trial_test):
-    # if k % 10000 == 0:
-    print("Current iter k: ", k)
+    if k % 10000 == 0:
+	    print("Current iter k: ", k)
     if k > N_trial:
         epsilon = 0
         learning_rate = 0
@@ -269,13 +288,23 @@ for k in range(N_trial + N_trial_test):
         # pro_new_observation = prepro(obs1, obs2, obs3, obs4)
         pro_new_observation = prepro_14(obs1, obs4)
 
-        # plt.imshow(pro_new_observation[:,:,3], cmap='gray')
+
+        # plt.imshow(pro_new_observation[:,:,1], cmap='gray')
         # plt.show()
+        # print("max pro: ", np.min(pro_new_observation[:,:,1]))
+        # For observing frames
+        # plt.figure(10);
+        # plt.clf()
+        # plt.imshow(pro_new_observation[:,:,1], cmap='gray');
+        # plt.title('Camera Frame')
+        # plt.pause(0.3)
+
 
         exp_mem.append(list(zip((pro_observation, pro_new_observation, action, reward, done))))
         frames_processed += 1
 
-
+        if (reward != 0):
+            exp_mem[-15:][3] = reward
         if frames_processed < observe_steps:
             obs1 = obs2
             obs2 = obs3
@@ -283,6 +312,7 @@ for k in range(N_trial + N_trial_test):
             pro_observation = pro_new_observation  # Pass the new state to the next step
             action = policy(pro_observation)
             acc_reward += reward
+            t += 1
             if done:
                 # print("done")
                 break  # Stop the trial when the environment says it is done
@@ -307,13 +337,14 @@ for k in range(N_trial + N_trial_test):
             # print("Current learning rate: ", learning_rate)
             print("Current epsilon: ", epsilon)
             print("Memory Length: ", len(exp_mem))
+            print("Frames processed: ", frames_processed)
             if(len(err_list) > 0):
                 print("Last error: ", err_list[-1])
 
         # if len(exp_mem) >= mb_size and t % mb_size == 0:
         # if done or reward != 0:
         # if len(exp_mem) >= mb_size * 2:
-        if True:
+        if reward != 0:
             # for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
             batch = random.sample(exp_mem, mb_size)
             # print("--------------------------------")
@@ -332,7 +363,7 @@ for k in range(N_trial + N_trial_test):
             mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
             mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
             one_hot_actions = np.zeros((mb_size, n_action))
-            one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1
+            one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1.
             # Perform one step of gradient descent
 
             summary, _ = sess.run([merged, training_step], feed_dict={
@@ -342,7 +373,8 @@ for k in range(N_trial + N_trial_test):
                 is_done_holder: mb_don.reshape(-1,),
                 r_holder: mb_rew.reshape(-1, 1, 1),
                 learning_rate_holder: learning_rate})
-            train_writer.add_summary(summary, k*trial_duration + t)
+            train_writer.add_summary(summary, summary_counter)
+            summary_counter += 1
 
             #TODO maybe train one batch per iteration (break), maybe more
             # Change to iterate_minibatches for more minibatches
@@ -363,7 +395,7 @@ for k in range(N_trial + N_trial_test):
             # exp_mem = []
 
         one_hot_action = np.zeros((1, n_action))
-        one_hot_action[0, action] = 1
+        one_hot_action[0, action] = 1.
         # Compute the Bellman Error for monitoring
         err = sess.run(error, feed_dict={
             state_holder: pro_observation.reshape((-1,img_size,img_size,input_ch_num)),
@@ -382,7 +414,7 @@ for k in range(N_trial + N_trial_test):
         action = policy(pro_observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
 
-        if frames_processed % 10000 == 0:
+        if frames_processed % 10000 == 0 and frames_processed > observe_steps:
             #PARL - Playing Atari with reinforcement learning
             print("Exporting network to: ", 'saved_networks/' + 'network' + '-parl')
             saver.save(sess, 'saved_networks/' + 'network' + '-parl', global_step=frames_processed)
@@ -399,7 +431,7 @@ for k in range(N_trial + N_trial_test):
 
     # save network every 100000 iteration
 
-    if(frames_processed > observe_steps):
+    if(frames_processed > observe_steps and len(err_list) != 0):
         print_results(k, time_list, err_list, reward_list, N_print_every=N_print_every)
 
 plot_results(N_trial, N_trial_test, reward_list, time_list, err_list)
