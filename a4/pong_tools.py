@@ -22,8 +22,8 @@ def get_all_coords(I):
 
 
 # downsampling
-def prepro(I1, I2, I3, I4):
+def prepro(I, I_prev):
     """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
-    I1_p = crop(I1)
+    opp_rel_y, ball_rel_x, ball_rel_y = get_all_coords(I)
     opp_rel_y_prev, ball_rel_x_prev, ball_rel_y_prev = get_all_coords(I_prev)
     return np.array([opp_rel_y, ball_rel_x, ball_rel_y, opp_rel_y_prev, ball_rel_x_prev, ball_rel_y_prev])
