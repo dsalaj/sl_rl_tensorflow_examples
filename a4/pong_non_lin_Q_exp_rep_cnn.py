@@ -24,7 +24,7 @@ import tensorflow as tf
 
 #DQN Paper parameters
 observe_steps = 50000
-explore_steps = 100000
+explore_steps = 0
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
@@ -206,7 +206,7 @@ variable_summaries(error, '/error')
 
 # Define the operation that performs the optimization
 learning_rate_holder = tf.placeholder(dtype=tf.float32, name='symbolic_state')
-training_step = tf.train.RMSPropOptimizer(learning_rate=0.001, decay=0.99, momentum=0.0, epsilon=1e-6).minimize(error)
+training_step = tf.train.RMSPropOptimizer(learning_rate=0.00025, decay=0.99, momentum=0.0, epsilon=1e-6).minimize(error)
 # training_step = tf.train.GradientDescentOptimizer(learning_rate_holder).minimize(error)
 
 sess = tf.Session()  # FOR NOW everything is symbolic, this object has to be called to compute each value of Q
@@ -270,6 +270,7 @@ for k in range(N_trial + N_trial_test):
     trial_err_list = []
 
     t = 0
+    point_length = 0
     # for t in range(trial_duration):
     while True:
         if render: env.render()
@@ -304,9 +305,14 @@ for k in range(N_trial + N_trial_test):
 
         exp_mem.append(list(zip((pro_observation, pro_new_observation, action, reward, done))))
         frames_processed += 1
+        point_length += 1
 
-        if (reward != 0):
-            exp_mem[-15:][3] = reward
+        if(reward != 0):
+            for i in range(point_length):
+                exp_mem[-(i+1)][3] = reward * (gamma ** i)
+            # exp_mem[-15:][3] = reward
+            point_length = 0
+
         if frames_processed < observe_steps:
             obs1 = obs2
             obs2 = obs3
