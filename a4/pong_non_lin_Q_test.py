@@ -23,11 +23,7 @@ import tensorflow as tf
 
 
 #DQN Paper parameters
-observe_steps = 50000
-explore_steps = 50000
-min_epsilon = 0.1
-init_epsilon = 1.
-epsilon = 1.
+epsilon = 0.
 learning_rate = 0.00025
 lr_decay = 0.99
 gamma = 0.95
@@ -37,7 +33,7 @@ mb_size = 32
 
 
 # General parameters
-render = False
+render = True
 # render = True
 N_print_every = 10
 N_trial = 100000000
@@ -217,7 +213,7 @@ sess = tf.Session()  # FOR NOW everything is symbolic, this object has to be cal
 sess.run(tf.initialize_all_variables())
 
 saver = tf.train.Saver()
-checkpoint = tf.train.get_checkpoint_state("saved_networks")
+checkpoint = tf.train.get_checkpoint_state("saved_networks_test")
 if checkpoint and checkpoint.model_checkpoint_path:
     epsilon = 0.0
     explore_steps = 0
@@ -280,136 +276,18 @@ for k in range(N_trial + N_trial_test):
     # for t in range(trial_duration):
     while True:
         if render: env.render()
-        if (frames_processed == 0):
-            print("Start OBSERVATION...")
-        if (frames_processed == observe_steps):
-            print("Start EXPLORATION...")
-        if (frames_processed == observe_steps + explore_steps):
-            print("Start TRAINING...")
 
         obs4, reward, done, info = env.step(action)  # Take the action
-        # print("rew done", reward, done)
-        # plt.imshow(obs4)
-        # plt.show()
-        # rms
-        # reward *= 10
 
-        # pro_new_observation = prepro(obs1, obs2, obs3, obs4)
         pro_new_observation = prepro_14(obs1, obs4)
 
 
-        # plt.imshow(pro_new_observation[:,:,1], cmap='gray')
-        # plt.show()
-        # print("max pro: ", np.min(pro_new_observation[:,:,1]))
-        # For observing frames
-        # plt.figure(10);
-        # plt.clf()
-        # plt.imshow(pro_new_observation[:,:,1], cmap='gray');
-        # plt.title('Camera Frame')
-        # plt.pause(0.3)
-
-
-        exp_mem.append(list(zip((pro_observation, pro_new_observation, action, reward, done))))
-        frames_processed += 1
         point_length += 1
 
         if(reward != 0):
-            for i in range(point_length):
-                exp_mem[-(i+1)][3] = reward * (gamma ** i)
-            # exp_mem[-15:][3] = reward
-            perfor_desc_steps_num = point_length
+            print("Point length: ", point_length)
             point_length = 0
 
-        if frames_processed < observe_steps:
-            obs1 = obs2
-            obs2 = obs3
-            obs3 = obs4
-            pro_observation = pro_new_observation  # Pass the new state to the next step
-            action = policy(pro_observation)
-            acc_reward += reward
-            t += 1
-            if done:
-                # print("done")
-                break  # Stop the trial when the environment says it is done
-            continue
-
-        if (len(exp_mem) > replay_memory_size):
-            exp_mem.pop(0)
-            # exp_mem = sorted(exp_mem , key=lambda tup: tup[3])
-            # exp_mem = exp_mem[:40] + exp_mem[60:]
-            # print("New Memory size: ", len(exp_mem))
-            # print("First score: ", exp_mem[0][3])
-            # print("Mid score: ", exp_mem[int(len(exp_mem)/2)][3])
-            # print("Last score: ", exp_mem[-1][3])
-            # a = 0
-            # b = 0
-            # for mem_i in range(len(exp_mem)):
-            #     if(exp_mem[mem_i][3][0] == -1): a +=1
-            #     elif(exp_mem[mem_i][3][0] == 1): b +=1
-            # print("Number of -1s: ", a)
-            # print("Number of 1s: ", b)
-        if (k % 10 == 0 and done):
-            # print("Current learning rate: ", learning_rate)
-            print("Current epsilon: ", epsilon)
-            print("Memory Length: ", len(exp_mem))
-            print("Frames processed: ", frames_processed)
-            if(len(err_list) > 0):
-                print("Last error: ", err_list[-1])
-
-        # if len(exp_mem) >= mb_size and t % mb_size == 0:
-        # if done or reward != 0:
-        # if len(exp_mem) >= mb_size * 2:
-        if reward != 0:
-            for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
-                # try training for more than one step
-
-                # batch = random.sample(exp_mem, mb_size)
-
-
-                minibatch_zip_ = batch
-                minibatch_zip = copy.deepcopy(minibatch_zip_)
-                mb_obs, mb_nob, mb_act, mb_rew, mb_don = zip(*minibatch_zip)
-
-                mb_obs = np.array(mb_obs).astype(np.float32)  # [o  for o, no, a, r, d in minibatch_zip])
-                mb_nob = np.array(mb_nob).astype(np.float32)  # [no for o, no, a, r, d in minibatch_zip])
-                mb_act = np.array(mb_act)  # [a  for o, no, a, r, d in minibatch_zip])
-                mb_rew = np.array(mb_rew)  # [r  for o, no, a, r, d in minibatch_zip])
-                mb_don = np.array(mb_don).astype(np.float32)  # [d  for o, no, a, r, d in minibatch_zip])
-                one_hot_actions = np.zeros((mb_size, n_action))
-                one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1.
-                # Perform one step of gradient descent
-
-                summary, _ = sess.run([merged, training_step], feed_dict={
-                    state_holder: mb_obs.reshape(-1, img_size,img_size,input_ch_num),
-                    next_state_holder: mb_nob.reshape(-1, img_size,img_size,input_ch_num),
-                    action_holder: one_hot_actions.reshape(-1, n_action, 1),
-                    is_done_holder: mb_don.reshape(-1,),
-                    r_holder: mb_rew.reshape(-1, 1, 1),
-                    learning_rate_holder: learning_rate})
-                train_writer.add_summary(summary, summary_counter)
-                summary_counter += 1
-                descent_steps += 1
-
-
-                #TODO maybe train one batch per iteration (break), maybe more
-                if i == perfor_desc_steps_num:
-                    perfor_desc_steps_num = 0
-                    break
-                # Change to iterate_minibatches for more minibatches
-                # if i > 5:
-                #     break
-                #break
-
-                # if learning_rate > 1e-4:
-                #     learning_rate *= lr_decay
-                # else:
-                #     learning_rate = 1e-4
-                # learning_rate *= lr_decay
-                # if epsilon > 0.1 and frames_processed < explore_steps + observe_steps:
-                if epsilon > 0.1:
-                    epsilon -= (init_epsilon - min_epsilon) / explore_steps
-                else:
-                    epsilon = 0.1
 
                 # exp_mem = []
 
@@ -432,16 +310,6 @@ for k in range(N_trial + N_trial_test):
         pro_observation = pro_new_observation  # Pass the new state to the next step
         action = policy(pro_observation)  # Decide next action based on policy
         acc_reward += reward  # Accumulate the reward
-
-        if frames_processed % 10000 == 0 and frames_processed > observe_steps:
-            #PARL - Playing Atari with reinforcement learning
-            print("Exporting network to: ", 'saved_networks/' + 'network' + '-parl')
-            if not os.path.exists('saved_networks/'):
-                os.makedirs('saved_networks/')
-            saver.save(sess, 'saved_networks/' + 'network' + '-parl', global_step=frames_processed)
-
-        if done:
-            break  # Stop the trial when the environment says it is done
 
         t += 1
 
