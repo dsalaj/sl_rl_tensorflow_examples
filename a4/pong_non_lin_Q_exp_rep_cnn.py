@@ -24,7 +24,7 @@ import tensorflow as tf
 
 #DQN Paper parameters
 observe_steps = 50000
-explore_steps = 0
+explore_steps = 50000
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
