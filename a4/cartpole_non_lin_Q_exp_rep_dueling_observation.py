@@ -50,7 +50,7 @@ N_print_every = 10
 N_trial = 200
 N_trial_test = 100
 # trial_duration = 200
-n_hidden = 60
+n_hidden = 20
 
 # Generate the environment
 env = CartPoleEnv()
@@ -290,6 +290,8 @@ while k < (N_trial + N_trial_test):
             continue
         elif frames_processed < observe_steps + explore_steps:
             k -= 1
+        elif frames_processed == observe_steps + explore_steps:
+            k = 0
 
         if k % N_print_every == 0 and done:
             print("Current epsilon: ", epsilon,
