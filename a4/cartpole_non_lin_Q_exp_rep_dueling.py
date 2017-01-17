@@ -30,24 +30,24 @@ def update_target_graph(from_scope, to_scope):
     return op_holder
 
 # DQN Paper parameters
-observe_steps = 0
-explore_steps = 1000
+observe_steps = 50
+explore_steps = 200
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
-learning_rate = 0.00025
+learning_rate = 0.001
 lr_decay = 0.99
 gamma = 0.95
 decay_reward = 0.999
-replay_memory_size = 2000
-mb_size = 32
+replay_memory_size = 300
+mb_size = 8
 update_target_net_every_descent_steps = 100
 
 # General parameters
 render = False
 # render = True
 N_print_every = 10
-N_trial = 200
+N_trial = 50
 N_trial_test = 100
 # trial_duration = 200
 n_hidden = 60
@@ -217,14 +217,14 @@ skip_counter = 0
 frames_processed = 0
 summary_counter = 0
 descent_steps = 0
-testing_flag = True
+testing_flag = False
 for k in range(N_trial + N_trial_test):
     if k % 10000 == 0:
         print("Current iter k: ", k)
     if k > N_trial:
-        if testing_flag:
+        if not testing_flag:
             print("Now testing with epsilon 0")
-            testing_flag = False
+            testing_flag = True
             render = True
         epsilon = 0
         learning_rate = 0
@@ -295,21 +295,13 @@ for k in range(N_trial + N_trial_test):
             # if len(err_list) > 0:
             #     print("Last error: ", err_list[-1])
 
-        if reward != 0:
-        # if len(exp_mem) >= mb_size:
+        # if reward != 0:
+        if not testing_flag and len(exp_mem) >= mb_size:
             # propagating reward to previous frames (simulating n-step Q method)
-            if reward > 0:
-                for i in range(min(point_length, 5)):
-                    exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
-            else:
-                for i in range(min(point_length, 2)):
-                    exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
 
             # learning same number of times as the number of taken actions (simulate learning after every action)
             for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
                 # batch = random.sample(exp_mem, mb_size)
-                if i >= point_length:
-                    break
 
                 minibatch_zip_ = batch
                 minibatch_zip = copy.deepcopy(minibatch_zip_)
@@ -340,10 +332,11 @@ for k in range(N_trial + N_trial_test):
 
             point_length = 0
 
-        if epsilon > 0.1:
-            epsilon -= (init_epsilon - min_epsilon) / explore_steps
-        else:
-            epsilon = 0.1
+        if not testing_flag:
+            if epsilon > 0.1:
+                epsilon -= (init_epsilon - min_epsilon) / explore_steps
+            else:
+                epsilon = 0.1
 
         one_hot_action = np.zeros((1, n_action))
         one_hot_action[0, action] = 1.
