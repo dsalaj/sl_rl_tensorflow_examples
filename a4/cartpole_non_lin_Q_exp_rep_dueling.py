@@ -250,8 +250,9 @@ for k in range(N_trial + N_trial_test):
 
         obs2, reward, done, info = env.step(action_list[action])  # Take the action
 
-        reward = 1
-        if done and t < 199: reward = 0    # The reward is modified
+        reward = 0
+        if done and t < 199: reward = -1    # The reward is modified
+        if done and t >= 199: reward = 1    # The reward is modified
 
         # pro_new_observation = prepro(obs1, obs2, obs3, obs4)
         pro_new_observation = prepro(obs1, obs2)
