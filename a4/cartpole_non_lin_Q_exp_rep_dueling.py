@@ -30,8 +30,8 @@ def update_target_graph(from_scope, to_scope):
     return op_holder
 
 # DQN Paper parameters
-observe_steps = 20
-explore_steps = 20
+observe_steps = 2000
+explore_steps = 2000
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
@@ -39,14 +39,14 @@ learning_rate = 0.00025
 lr_decay = 0.99
 gamma = 0.95
 decay_reward = 0.999
-replay_memory_size = 1000
+replay_memory_size = 2000
 mb_size = 32
-update_target_net_every_descent_steps = 50
+update_target_net_every_descent_steps = 300
 
 # General parameters
 render = False
 # render = True
-N_print_every = 10
+N_print_every = 20
 N_trial = 200
 N_trial_test = 100
 # trial_duration = 200
@@ -252,7 +252,6 @@ for k in range(N_trial + N_trial_test):
 
         reward = 0
         if done and t < 199: reward = -1    # The reward is modified
-        if done and t >= 199: reward = 1    # The reward is modified
 
         # pro_new_observation = prepro(obs1, obs2, obs3, obs4)
         pro_new_observation = prepro(obs1, obs2)
@@ -293,14 +292,14 @@ for k in range(N_trial + N_trial_test):
             #     print("Last error: ", err_list[-1])
 
         if reward != 0:
+        # if len(exp_mem) >= mb_size:
             # propagating reward to previous frames (simulating n-step Q method)
             if reward > 0:
-                for i in range(min(point_length, 50)):
+                for i in range(min(point_length, 10)):
                     exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
             else:
-                for i in range(min(point_length, 30)):
+                for i in range(min(point_length, 10)):
                     exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
-
 
             # learning same number of times as the number of taken actions (simulate learning after every action)
             for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
