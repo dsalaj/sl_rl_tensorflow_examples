@@ -30,8 +30,8 @@ def update_target_graph(from_scope, to_scope):
     return op_holder
 
 # DQN Paper parameters
-observe_steps = 2000
-explore_steps = 2000
+observe_steps = 0
+explore_steps = 1000
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
@@ -41,12 +41,12 @@ gamma = 0.95
 decay_reward = 0.999
 replay_memory_size = 2000
 mb_size = 32
-update_target_net_every_descent_steps = 300
+update_target_net_every_descent_steps = 100
 
 # General parameters
 render = False
 # render = True
-N_print_every = 20
+N_print_every = 10
 N_trial = 200
 N_trial_test = 100
 # trial_duration = 200
@@ -280,10 +280,14 @@ for k in range(N_trial + N_trial_test):
                 break  # Stop the trial when the environment says it is done
             continue
 
-        if len(exp_mem) > replay_memory_size:
-            exp_mem.pop(0)
+        if len(exp_mem) > replay_memory_size + 10:
+            # exp_mem.pop(0)
+            exp_mem = sorted(exp_mem, key=lambda tup: tup[3])
+            middle_index = int(len(exp_mem) / 2)
+            for i in range(10):
+                exp_mem.pop(middle_index + i)
 
-        if k % 10 == 0 and done:
+        if k % N_print_every == 0 and done:
             print("Current epsilon: ", epsilon,
                   "Memory Length: ", len(exp_mem),
                   "Frames processed: ", frames_processed,
@@ -295,10 +299,10 @@ for k in range(N_trial + N_trial_test):
         # if len(exp_mem) >= mb_size:
             # propagating reward to previous frames (simulating n-step Q method)
             if reward > 0:
-                for i in range(min(point_length, 10)):
+                for i in range(min(point_length, 5)):
                     exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
             else:
-                for i in range(min(point_length, 10)):
+                for i in range(min(point_length, 2)):
                     exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
 
             # learning same number of times as the number of taken actions (simulate learning after every action)
@@ -320,12 +324,6 @@ for k in range(N_trial + N_trial_test):
                 one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1.
                 # Perform one step of gradient descent
 
-                # print("state shape", pro_observation.reshape((-1, dim_state)).shape)
-                # print("mb_obs:", mb_obs.reshape((-1, dim_state)))
-                # print("mb_nob:", mb_nob.reshape((-1, dim_state)))
-                # print("onactions:", one_hot_actions.reshape(-1, n_action, 1))
-                # print("mb_don:", mb_don.reshape(-1,))
-                # print("mb_rew:", mb_rew.reshape(-1, 1, 1))
                 summary, _ = sess.run([merged, training_step], feed_dict={
                     Q_network.state_holder: mb_obs.reshape((-1, dim_state)),
                     Q_network.next_state_holder: mb_nob.reshape((-1, dim_state)),
