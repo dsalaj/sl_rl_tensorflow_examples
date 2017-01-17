@@ -282,10 +282,10 @@ for k in range(N_trial + N_trial_test):
         if reward != 0:
             # propagating reward to previous frames (simulating n-step Q method)
             if reward > 0:
-                for i in range(min(int(point_length/2), 250)):
+                for i in range(min(point_length, 250)):
                     exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
             else:
-                for i in range(min(int(point_length/3), 30)):
+                for i in range(min(point_length, 30)):
                     exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
 
 
