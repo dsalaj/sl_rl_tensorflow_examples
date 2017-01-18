@@ -26,18 +26,18 @@ def update_target_graph(from_scope, to_scope):
     return op_holder
 
 # DQN Paper parameters
-observe_steps = 200000
-explore_steps = 200000
+observe_steps = 10000
+explore_steps = 20000
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
-learning_rate = 0.00025
+learning_rate = 0.001
 lr_decay = 0.99
 gamma = 0.95
 decay_reward = 0.999
-replay_memory_size = 200000
-mb_size = 32
-update_target_net_every_descent_steps = 50
+replay_memory_size = 10000
+mb_size = 128
+update_target_net_every_descent_steps = 100
 
 # General parameters
 render = False
@@ -279,21 +279,12 @@ for k in range(N_trial + N_trial_test):
             # if len(err_list) > 0:
             #     print("Last error: ", err_list[-1])
 
-        if reward != 0:
+        if len(exp_mem) >= mb_size:
             # propagating reward to previous frames (simulating n-step Q method)
-            if reward > 0:
-                for i in range(min(point_length, 250)):
-                    exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
-            else:
-                for i in range(min(point_length, 30)):
-                    exp_mem[-(i+1)][3] = (reward * (decay_reward ** i),)
-
 
             # learning same number of times as the number of taken actions (simulate learning after every action)
             for i, batch in enumerate(iterate_minibatches(exp_mem, shuffle=True, batchsize=mb_size)):
                 # batch = random.sample(exp_mem, mb_size)
-                if i >= point_length:
-                    break
 
                 minibatch_zip_ = batch
                 minibatch_zip = copy.deepcopy(minibatch_zip_)
