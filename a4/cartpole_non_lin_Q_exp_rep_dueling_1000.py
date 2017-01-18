@@ -8,11 +8,15 @@ import random
 import numpy as np
 import numpy.random as rd
 import matplotlib.pyplot as plt
-from pong_tools import prepro
+# from pong_tools import prepro
 from cartpole_utils import plot_results,print_results
+from gym.envs.classic_control.cartpole import CartPoleEnv
 from tf_tools import variable_summaries
 import tensorflow as tf
 
+
+def prepro(obs_1, obs_2):
+    return np.concatenate((obs1, obs2), axis=0)
 
 # Copies one set of variables to another.
 # Used to set worker network parameters to those of global network.
@@ -26,8 +30,8 @@ def update_target_graph(from_scope, to_scope):
     return op_holder
 
 # DQN Paper parameters
-observe_steps = 10000
-explore_steps = 20000
+observe_steps = 50
+explore_steps = 200
 min_epsilon = 0.1
 init_epsilon = 1.
 epsilon = 1.
@@ -35,27 +39,28 @@ learning_rate = 0.001
 lr_decay = 0.99
 gamma = 0.95
 decay_reward = 0.999
-replay_memory_size = 10000
-mb_size = 128
-update_target_net_every_descent_steps = 100
+replay_memory_size = 1000
+mb_size = 50
+update_target_net_every_descent_steps = 20
 
 # General parameters
 render = False
 # render = True
 N_print_every = 10
-N_trial = 1000000
+N_trial = 50
 N_trial_test = 100
 # trial_duration = 200
-n_hidden = 60
+n_hidden = 20
 
 # Generate the environment
-env = gym.make("Pong-v0")
-# dim_state = env.observation_space.high.__len__()
-dim_state = 6  # after preprocessing it's 6
-# n_action = env.action_space.n
+env = CartPoleEnv()
+dim_state = env.observation_space.high.__len__() * 2
+# dim_state = 6  # after preprocessing it's 6
+n_action = env.action_space.n
 # action list should be same for all games
-n_action = 3
-action_list = [0, 2, 3]  # only 3 controls used
+# n_action = 3
+# action_list = [0, 2, 3]  # only 3 controls used
+action_list = [i for i in range(n_action)]
 # print("Number of valid actions: ", n_action)
 
 
@@ -212,11 +217,15 @@ skip_counter = 0
 frames_processed = 0
 summary_counter = 0
 descent_steps = 0
+testing_flag = False
 for k in range(N_trial + N_trial_test):
     if k % 10000 == 0:
         print("Current iter k: ", k)
     if k > N_trial:
-        print("Now testing with epsilon 0")
+        if not testing_flag:
+            print("Now testing with epsilon 0")
+            testing_flag = True
+            render = True
         epsilon = 0
         learning_rate = 0
 
@@ -230,7 +239,7 @@ for k in range(N_trial + N_trial_test):
     t = 0
     point_length = 0
 
-    while True:
+    for trial_step in range(200):
         if render: env.render()
         if (frames_processed == 0):
             print("Start OBSERVATION...")
@@ -240,6 +249,9 @@ for k in range(N_trial + N_trial_test):
             print("Start TRAINING...")
 
         obs2, reward, done, info = env.step(action_list[action])  # Take the action
+
+        reward = 0
+        if done and t < 199: reward = -1    # The reward is modified
 
         # pro_new_observation = prepro(obs1, obs2, obs3, obs4)
         pro_new_observation = prepro(obs1, obs2)
@@ -268,10 +280,14 @@ for k in range(N_trial + N_trial_test):
                 break  # Stop the trial when the environment says it is done
             continue
 
-        if len(exp_mem) > replay_memory_size:
-            exp_mem.pop(0)
+        if len(exp_mem) > replay_memory_size + 10:
+            # exp_mem.pop(0)
+            exp_mem = sorted(exp_mem, key=lambda tup: tup[3])
+            middle_index = int(len(exp_mem) / 2)
+            for i in range(10):
+                exp_mem.pop(middle_index + i)
 
-        if k % 10 == 0 and done:
+        if k % N_print_every == 0 and done:
             print("Current epsilon: ", epsilon,
                   "Memory Length: ", len(exp_mem),
                   "Frames processed: ", frames_processed,
@@ -279,7 +295,8 @@ for k in range(N_trial + N_trial_test):
             # if len(err_list) > 0:
             #     print("Last error: ", err_list[-1])
 
-        if len(exp_mem) >= mb_size:
+        # if reward != 0:
+        if not testing_flag and len(exp_mem) >= mb_size:
             # propagating reward to previous frames (simulating n-step Q method)
 
             # learning same number of times as the number of taken actions (simulate learning after every action)
@@ -299,12 +316,6 @@ for k in range(N_trial + N_trial_test):
                 one_hot_actions[np.arange(mb_size), np.reshape(mb_act, (mb_size,))[:]] = 1.
                 # Perform one step of gradient descent
 
-                # print("state shape", pro_observation.reshape((-1, dim_state)).shape)
-                # print("mb_obs:", mb_obs.reshape((-1, dim_state)))
-                # print("mb_nob:", mb_nob.reshape((-1, dim_state)))
-                # print("onactions:", one_hot_actions.reshape(-1, n_action, 1))
-                # print("mb_don:", mb_don.reshape(-1,))
-                # print("mb_rew:", mb_rew.reshape(-1, 1, 1))
                 summary, _ = sess.run([merged, training_step], feed_dict={
                     Q_network.state_holder: mb_obs.reshape((-1, dim_state)),
                     Q_network.next_state_holder: mb_nob.reshape((-1, dim_state)),
@@ -321,10 +332,11 @@ for k in range(N_trial + N_trial_test):
 
             point_length = 0
 
-        if epsilon > 0.1:
-            epsilon -= (init_epsilon - min_epsilon) / explore_steps
-        else:
-            epsilon = 0.1
+        if not testing_flag:
+            if epsilon > 0.1:
+                epsilon -= (init_epsilon - min_epsilon) / explore_steps
+            else:
+                epsilon = 0.1
 
         one_hot_action = np.zeros((1, n_action))
         one_hot_action[0, action] = 1.
