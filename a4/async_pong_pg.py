@@ -19,7 +19,7 @@ action_list = [0, 2, 3]
 # The *relative* y coordinate of the opponent and the x,y coordinates of the ball for *two* frames
 n_obs = 6
 
-print_per_episode = 10
+print_per_episode = 20
 
 n_train_trials = 1000
 n_test_trials = 100
@@ -102,8 +102,8 @@ class Worker():
         self.episode_rewards = []
         self.episode_lengths = []
         # self.episode_mean_values = []
-        self.summary_writer = tf.train.SummaryWriter(
-            "train_" + str(self.number))
+        # self.summary_writer = tf.train.SummaryWriter("train_" + str(self.number))
+        self.summary_writer = tf.summary.FileWriter("train_" + str(self.number))
 
         # Create the local copy of the network and the tensorflow op to copy global paramters to local network
         self.local_AC = AC_Network(s_size, a_size, self.name, trainer)
@@ -169,6 +169,11 @@ class Worker():
                         s1 = s
 
                     episode_buffer.append([s, action_arr, r, s1, done, None])
+                    # Update the network using the experience buffer at the end of the episode.
+                    if r != 0 or (len(episode_buffer) > 0 and done):
+                        loss = self.train(global_AC, episode_buffer, sess, gamma, 0.0)
+                        sess.run(self.update_local_ops)
+                        episode_buffer = []
 
                     episode_reward += r
                     s = s1
@@ -178,29 +183,21 @@ class Worker():
                 self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
 
-                # Update the network using the experience buffer at the end of the episode.
-                if len(episode_buffer) != 0:
-                    loss = self.train(global_AC, episode_buffer, sess, gamma, 0.0)
-
                 if self.name == 'worker_0':
                     sess.run(self.increment)
                 episode_count += 1
 
                 if episode_count % print_per_episode == 0:
-                    print("{}:Average REWARDS in last {} episodes before episode {}".format(self.name,
-                                                                                            print_per_episode,
-                                                                                            episode_count),
+                    print("{}: in last {} episodes before episode {} avg REWARDS"
+                          .format(self.name, print_per_episode, episode_count),
                           np.mean(self.episode_rewards[(episode_count - print_per_episode):episode_count]), '+-',
-                          np.std(self.episode_rewards[(episode_count - print_per_episode):episode_count])
+                          np.std(self.episode_rewards[(episode_count - print_per_episode):episode_count]),
+                          "avg STEPS",
+                          np.mean(self.episode_lengths[(episode_count - print_per_episode):episode_count]), '+-',
+                          np.std(self.episode_lengths[(episode_count - print_per_episode):episode_count]),
                           )
 
-
-
-max_episode_length = 300
-gamma = .99  # discount rate for advantage estimation and reward discounting
-s_size = 7056  # Observations are greyscale frames of 84 * 84 * 1
-a_size = 3  # Agent can move Left, Right, or Fire
-
+max_episode_length = s_size = a_size = 0
 tf.reset_default_graph()
 
 
@@ -221,7 +218,8 @@ with tf.device("/cpu:0"):
 
 with tf.Session() as sess:
     coord = tf.train.Coordinator()
-    sess.run(tf.initialize_all_variables())
+    # sess.run(tf.initialize_all_variables())
+    sess.run(tf.global_variables_initializer())
 
     # This is where the asynchronous magic happens.
     # Start the "work" process for each worker in a separate threat.
