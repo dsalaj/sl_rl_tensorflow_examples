@@ -23,4 +23,11 @@ Similar suggestion from the playing atari Nature paper is using the
 "prioritized sweeping" which is basically sorting the memory tries by the 
 error and discarding the least interesting ones for learning (the ones with 
 lowest error) instead of oldest ones.
+ref: http://webdocs.cs.ualberta.ca/~sutton/book/ebook/node98.html
 
+Sorting exp.memory based on reward and removing the middle secion instead of 
+the oldest entries (in the context of pong) might not be a good idea. We 
+will soon collect a memory full of finishing frames from which we already 
+learned a lot which turns them into uninteresting frames. This contradicts 
+the point of prioritized sweeping whre we want the most interesting frames 
+with highest error in our memory.
