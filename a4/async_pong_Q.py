@@ -19,17 +19,17 @@ action_list = [0, 2, 3]
 # The *relative* y coordinate of the opponent and the x,y coordinates of the ball for *two* frames
 n_obs = 6
 
-print_per_episode = 100
+print_per_episode = 10
 
 n_train_trials = 20000
 n_test_trials = 100
 gamma = 0.99
 learning_rate = 0.00025
 
-n_hidden = 50
+n_hidden = 60
 
-target_update_steps = 600
-async_update_steps = 1000
+target_update_steps = 1500
+async_update_steps = 3000
 
 
 class QNetwork():
@@ -51,11 +51,12 @@ class QNetwork():
             y = tf.nn.relu(a_y, name='hidden_layer_activation')
             a_z = tf.matmul(y, w, name='output_activation') + b
 
-            # Q function at the next step
-            next_a_y = tf.matmul(self.next_state_holder, wh, name='next_step_output_activation') + bh
-            next_y = tf.nn.relu(next_a_y, name='next_step_hidden_layer_activation')
-            next_a_z = tf.matmul(next_y, w, name='next_step_output_activation') + b
-            self.next_Q = next_a_z
+            # # Q function at the next step
+            # next_a_y = tf.matmul(self.next_state_holder, wh, name='next_step_output_activation') + bh
+            # next_y = tf.nn.relu(next_a_y, name='next_step_hidden_layer_activation')
+            # next_a_z = tf.matmul(next_y, w, name='next_step_output_activation') + b
+            # self.next_Q = next_a_z
+            self.next_Q = tf.placeholder(dtype=tf.float32, shape=(None, n_actions))
             self.Q = tf.reshape(a_z, (-1, 1, n_actions))
 
             # Define symbolic variables that will carry information needed for training
@@ -101,26 +102,21 @@ class TargetQNetwork():
         with tf.variable_scope(scope):
 
             # Generate the symbolic variables to hold the state values
-            self.state_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_obs), name='symbolic_state')
-            self.next_state_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_obs), name='symbolic_state')
+            self.state_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_obs))
+            self.next_state_holder = tf.placeholder(dtype=tf.float32, shape=(None, n_obs))
 
             # Create the parameters of the Q model
-            w = tf.Variable(initial_value=tf.truncated_normal([n_hidden, n_actions], stddev=0.1), trainable=True, name='weight_variable')
-            b = tf.Variable(initial_value=tf.constant(0.1, shape=[n_actions]), trainable=True, name='bias')
-            wh = tf.Variable(initial_value=tf.truncated_normal([n_obs, n_hidden], stddev=0.1), trainable=True, name='hidden_weight_variable')
-            bh = tf.Variable(initial_value=tf.constant(0.1, shape=[n_hidden]), trainable=True, name='hidden_bias')
+            w = tf.Variable(initial_value=tf.truncated_normal([n_hidden, n_actions], stddev=0.1), trainable=True)
+            b = tf.Variable(initial_value=tf.constant(0.1, shape=[n_actions]), trainable=True)
+            wh = tf.Variable(initial_value=tf.truncated_normal([n_obs, n_hidden], stddev=0.1), trainable=True)
+            bh = tf.Variable(initial_value=tf.constant(0.1, shape=[n_hidden]), trainable=True)
 
             # Q function at the current step
-            a_y = tf.matmul(self.state_holder, wh, name='output_activation') + bh
-            y = tf.nn.relu(a_y, name='hidden_layer_activation')
-            a_z = tf.matmul(y, w, name='output_activation') + b
+            a_y = tf.matmul(self.state_holder, wh) + bh
+            y = tf.nn.relu(a_y)
+            self.a_z = tf.matmul(y, w) + b
 
-            # Q function at the next step
-            next_a_y = tf.matmul(self.next_state_holder, wh, name='next_step_output_activation') + bh
-            next_y = tf.nn.relu(next_a_y, name='next_step_hidden_layer_activation')
-            next_a_z = tf.matmul(next_y, w, name='next_step_output_activation') + b
-            self.next_Q = next_a_z
-            self.Q = tf.reshape(a_z, (-1, 1, n_actions))
+            self.Q = tf.reshape(self.a_z, (-1, 1, n_actions))
 
             self.update_target_network = update_target_graph(trained_scope, scope)
 
@@ -138,7 +134,7 @@ def policy(state, epsilon, target_Q_net):
 
 
 class Worker():
-    def __init__(self, game, name, s_size, a_size, trainer, global_episodes, epsilon):
+    def __init__(self, game, name, s_size, a_size, trainer, global_episodes):
         self.name = "worker_" + str(name)
         self.number = name
         self.trainer = trainer
@@ -150,7 +146,7 @@ class Worker():
         # self.episode_mean_values = []
         self.summary_writer = tf.train.SummaryWriter("train_" + str(self.number))
         # self.summary_writer = tf.summary.FileWriter("train_" + str(self.number))
-        self.epsilon = epsilon
+        self.epsilon = 0.7
 
         # Create the local copy of the network and the tensorflow op to copy global paramters to local network
         self.local_Q = QNetwork(s_size, a_size, self.name, trainer)
@@ -173,7 +169,12 @@ class Worker():
         # Update the global network using gradients from loss
         # Generate network statistics to periodically save
         # rnn_state = self.local_AC.state_init
+        target_feed_dict = {
+            self.local_target_Q.state_holder: next_observations.reshape((-1, n_obs)),
+        }
+        target_next_Q = sess.run(self.local_target_Q.a_z, feed_dict=target_feed_dict)
         feed_dict = {
+                     self.local_Q.next_Q: target_next_Q.reshape(-1, n_actions),
                      self.local_Q.r_holder: rewards.reshape(-1, 1, 1),
                      self.local_Q.state_holder: observations.reshape((-1, n_obs)),
                      self.local_Q.next_state_holder: next_observations.reshape((-1, n_obs)),
@@ -233,7 +234,12 @@ class Worker():
                     if total_steps % target_update_steps == 0:
                         sess.run(self.local_target_Q.update_target_network)
 
+                    target_feed_dict = {
+                        self.local_target_Q.state_holder: s1.reshape((-1, n_obs)),
+                    }
+                    target_next_Q = sess.run(self.local_target_Q.a_z, feed_dict=target_feed_dict)
                     err = sess.run(self.local_Q.loss, feed_dict={
+                        self.local_Q.next_Q: target_next_Q.reshape(-1, n_actions),
                         self.local_Q.state_holder: s.reshape((-1, n_obs)),
                         self.local_Q.next_state_holder: s1.reshape((-1, n_obs)),
                         self.local_Q.action_holder: action_arr.reshape(-1, n_actions, 1),
@@ -252,12 +258,13 @@ class Worker():
                 if self.name == 'worker_0':
                     sess.run(self.increment)
                 episode_count += 1
-
+                random_epsilon = np.absolute(np.random.normal(loc=0., scale=max(.2, (10 - episode_count)/10)))
+                self.epsilon = random_epsilon if random_epsilon < 1. else 1.
                 if episode_count % print_per_episode == 0:
-                    print("{}: in last {} episodes before episode {} avg REWARDS"
-                          .format(self.name, print_per_episode, episode_count),
-                          np.mean(self.episode_rewards[(episode_count - print_per_episode):episode_count]), '+-',
-                          np.std(self.episode_rewards[(episode_count - print_per_episode):episode_count]),
+                    print("{} {:<1.03}: in last {:<3} episodes before episode {:<4} avg REWARDS {:<2.04} +- {:<2.04}"
+                          .format(self.name, self.epsilon, print_per_episode, episode_count,
+                                  np.mean(self.episode_rewards[(episode_count - print_per_episode):episode_count]),
+                                  np.std(self.episode_rewards[(episode_count - print_per_episode):episode_count])),
                           "avg STEPS",
                           np.mean(self.episode_lengths[(episode_count - print_per_episode):episode_count]), '+-',
                           np.std(self.episode_lengths[(episode_count - print_per_episode):episode_count]),
@@ -278,11 +285,10 @@ with tf.device("/cpu:0"):
     master_network = QNetwork(s_size, a_size, 'global', None)  # Generate global network
     num_workers = multiprocessing.cpu_count()  # Set workers ot number of available CPU threads
     workers = []
-    eps = [0.7, 0.4, 0.2, 0.05]
     # Create worker classes
     for i in range(num_workers):
         workers.append(
-            Worker(gym.make("Pong-v0"), i, s_size, a_size, trainer, global_episodes, eps[i])
+            Worker(gym.make("Pong-v0"), i, s_size, a_size, trainer, global_episodes)
         )
     saver = tf.train.Saver(max_to_keep=5)
 
