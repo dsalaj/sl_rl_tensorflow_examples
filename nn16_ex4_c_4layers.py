@@ -3,9 +3,10 @@ import pylab as pl     # for graphics
 import numpy as np
 import tensorflow as tf
 
-n_hidden = 55
-batch_size = 40
-n_epochs = 43
+n_hidden = 65
+batch_size = 30
+n_epochs = 40
+lr = 0.001
 
 # NOTE:
 
@@ -59,6 +60,8 @@ C_tst_onehot[np.arange(n_tst_data), C_tst - np.ones_like(C_tst)] = 1
 x = tf.placeholder(tf.float32, [None, n_features])
 W = tf.Variable(tf.truncated_normal([n_features, n_hidden], stddev=0.1))
 b = tf.Variable(tf.constant(0.1, shape=[n_hidden]))
+Whhh = tf.Variable(tf.truncated_normal([n_hidden, n_hidden], stddev=0.1))
+bhhh = tf.Variable(tf.constant(0.1, shape=[n_hidden]))
 Whh = tf.Variable(tf.truncated_normal([n_hidden, n_hidden], stddev=0.1))
 bhh = tf.Variable(tf.constant(0.1, shape=[n_hidden]))
 Wh = tf.Variable(tf.truncated_normal([n_hidden, n_classes], stddev=0.1))
@@ -66,9 +69,11 @@ bh = tf.Variable(tf.constant(0.1, shape=[n_classes]))
 
 a_inpt = tf.matmul(x, W) + b
 inpt = tf.nn.relu(a_inpt)
-a_mid = tf.matmul(inpt, Whh) + bhh
+a_mid = tf.matmul(inpt, Whhh) + bhhh
 mid = tf.nn.relu(a_mid)
-y = tf.matmul(mid, Wh) + bh
+a_mid2 = tf.matmul(mid, Whh) + bhh
+mid2 = tf.nn.relu(a_mid2)
+y = tf.matmul(mid2, Wh) + bh
 # not applying softmax as it is implicitly used in cross_entropy bellow
 
 # Define loss and optimizer
@@ -79,9 +84,9 @@ learning_rate = tf.placeholder(tf.float32)
 # optimal learning rate for GD is 0.1
 # train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(cross_entropy)
 # optimal learning rate for Adam is 0.0005
-train_step = tf.train.AdamOptimizer(learning_rate).minimize(cross_entropy)
+# train_step = tf.train.AdamOptimizer(learning_rate).minimize(cross_entropy)
 # optimal learning rate for RMSProp is 0.001
-# train_step = tf.train.RMSPropOptimizer(learning_rate).minimize(cross_entropy)
+train_step = tf.train.RMSPropOptimizer(learning_rate).minimize(cross_entropy)
 
 sess = tf.InteractiveSession()
 tf.initialize_all_variables().run()
@@ -93,8 +98,6 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # Train
 X_train = X
 C_train_onehot = C_onehot
-
-lr = 0.0005
 
 max_valid_acc = opt_epoch_num = opt_batch_part = train_acc = test_acc = 0
 
