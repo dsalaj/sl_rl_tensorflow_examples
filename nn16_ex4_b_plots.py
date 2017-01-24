@@ -60,12 +60,17 @@ C_onehot[np.arange(n_data), C - np.ones_like(C)] = 1
 # C_tst_onehot = np.zeros((n_tst_data, n_classes))
 # C_tst_onehot[np.arange(n_tst_data), C_tst - np.ones_like(C_tst)] = 1
 
-# Create the single layer model
+# Create the single hidden layer model
 x = tf.placeholder(tf.float32, [None, n_features])
-W = tf.Variable(tf.truncated_normal([n_features, n_classes], stddev=0.1))
-b = tf.Variable(tf.constant(0.1, shape=[n_classes]))
-y = tf.matmul(x, W) + b
-# # not applying softmax as it is implicitly used in cross_entropy bellow
+W = tf.Variable(tf.truncated_normal([n_features, n_hidden], stddev=0.1))
+b = tf.Variable(tf.constant(0.1, shape=[n_hidden]))
+Wh = tf.Variable(tf.truncated_normal([n_hidden, n_classes], stddev=0.1))
+bh = tf.Variable(tf.constant(0.1, shape=[n_classes]))
+
+a_inpt = tf.matmul(x, W) + b
+inpt = tf.nn.relu(a_inpt)
+y = tf.matmul(inpt, Wh) + bh
+# not applying softmax as it is implicitly used in cross_entropy bellow
 
 # Define loss and optimizer
 y_ = tf.placeholder(tf.float32, [None, n_classes])
@@ -137,10 +142,12 @@ descent_steps = 0
 gd_lr = 0.05
 adam_lr = 0.0005
 rmsprop_lr = 0.001
-reset_W = W.assign(tf.truncated_normal([n_features, n_classes], stddev=0.1))
-reset_b = b.assign(tf.constant(0.1, shape=[n_classes]))
+reset_W = W.assign(tf.truncated_normal([n_features, n_hidden], stddev=0.1))
+reset_b = b.assign(tf.constant(0.1, shape=[n_hidden]))
+reset_hW = Wh.assign(tf.truncated_normal([n_hidden, n_classes], stddev=0.1))
+reset_hb = bh.assign(tf.constant(0.1, shape=[n_classes]))
 
-sess.run([reset_W, reset_b], feed_dict={})
+sess.run([reset_W, reset_b, reset_hW, reset_hb], feed_dict={})
 for _ in range(epochs):
   for _, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot,
                                                                  shuffle=True, batchsize=batch_size)):
@@ -149,7 +156,7 @@ for _ in range(epochs):
     gd_misclass_data.append(1-valid_acc)
     descent_steps += 1
 
-sess.run([reset_W, reset_b], feed_dict={})
+sess.run([reset_W, reset_b, reset_hW, reset_hb], feed_dict={})
 for _ in range(epochs):
   for _, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot,
                                                                  shuffle=True, batchsize=batch_size)):
@@ -157,7 +164,7 @@ for _ in range(epochs):
     valid_acc = sess.run(accuracy, feed_dict={x: X_valid, y_: C_valid_onehot})
     adam_misclass_data.append(1-valid_acc)
 
-sess.run([reset_W, reset_b], feed_dict={})
+sess.run([reset_W, reset_b, reset_hW, reset_hb], feed_dict={})
 for _ in range(epochs):
   for _, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot,
                                                                  shuffle=True, batchsize=batch_size)):

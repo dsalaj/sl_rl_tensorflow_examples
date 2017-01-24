@@ -60,12 +60,17 @@ C_onehot[np.arange(n_data), C - np.ones_like(C)] = 1
 # C_tst_onehot = np.zeros((n_tst_data, n_classes))
 # C_tst_onehot[np.arange(n_tst_data), C_tst - np.ones_like(C_tst)] = 1
 
-# Create the single layer model
+# Create the single hidden layer model
 x = tf.placeholder(tf.float32, [None, n_features])
-W = tf.Variable(tf.truncated_normal([n_features, n_classes], stddev=0.1))
-b = tf.Variable(tf.constant(0.1, shape=[n_classes]))
-y = tf.matmul(x, W) + b
-# # not applying softmax as it is implicitly used in cross_entropy bellow
+W = tf.Variable(tf.truncated_normal([n_features, n_hidden], stddev=0.1))
+b = tf.Variable(tf.constant(0.1, shape=[n_hidden]))
+Wh = tf.Variable(tf.truncated_normal([n_hidden, n_classes], stddev=0.1))
+bh = tf.Variable(tf.constant(0.1, shape=[n_classes]))
+
+a_inpt = tf.matmul(x, W) + b
+inpt = tf.nn.relu(a_inpt)
+y = tf.matmul(inpt, Wh) + bh
+# not applying softmax as it is implicitly used in cross_entropy bellow
 
 # Define loss and optimizer
 y_ = tf.placeholder(tf.float32, [None, n_classes])
@@ -73,11 +78,11 @@ cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y, y_))
 learning_rate = tf.placeholder(tf.float32)
 
 # optimal learning rate for GD is 0.1
-# train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(cross_entropy)
+train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(cross_entropy)
 # optimal learning rate for Adam is 0.0005
 # train_step = tf.train.AdamOptimizer(learning_rate).minimize(cross_entropy)
 # optimal learning rate for RMSProp is 0.001
-train_step = tf.train.RMSPropOptimizer(learning_rate).minimize(cross_entropy)
+# train_step = tf.train.RMSPropOptimizer(learning_rate).minimize(cross_entropy)
 
 sess = tf.InteractiveSession()
 tf.initialize_all_variables().run()
@@ -96,12 +101,12 @@ C_train_onehot = C_onehot[:n_train_data]
 X_valid = X[n_train_data:]
 C_valid_onehot = C_onehot[n_train_data:]
 
-for lr in [0.0001, 0.0005, 0.0008] + list(np.arange(0.001, 0.01, 0.002)) + \
-          [0.01, 0.02] + list(np.arange(0.05, 0.5, 0.05)):
-  a = W.assign(tf.truncated_normal([n_features, n_classes], stddev=0.1))
-  sess.run(a, feed_dict={})
-  a = b.assign(tf.constant(0.1, shape=[n_classes]))
-  sess.run(a, feed_dict={})
+for lr in list(np.arange(0.01, 0.5, 0.02)):
+  reset_W = W.assign(tf.truncated_normal([n_features, n_hidden], stddev=0.1))
+  reset_b = b.assign(tf.constant(0.1, shape=[n_hidden]))
+  reset_hW = Wh.assign(tf.truncated_normal([n_hidden, n_classes], stddev=0.1))
+  reset_hb = bh.assign(tf.constant(0.1, shape=[n_classes]))
+  sess.run([reset_W, reset_b, reset_hW, reset_hb], feed_dict={})
 
   max_valid_acc = opt_epoch_num = opt_batch_part = train_acc = 0
   train_accs = []
