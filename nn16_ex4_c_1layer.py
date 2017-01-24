@@ -3,12 +3,10 @@ import pylab as pl     # for graphics
 import numpy as np
 import tensorflow as tf
 
-n_hidden = 55
+n_hidden = 50
 batch_size = 50
-n_epochs = 21
+n_epochs = 100
 lr = 0.001
-
-# NOTE:
 
 
 def shuffle_in_unison_scary(a, b):
@@ -96,25 +94,44 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # Train
 shuffle_in_unison_scary(X, C_onehot)
-X_train = X
-C_train_onehot = C_onehot
+
+n_train_data = int(n_data * 0.8)
+n_es_data = int(n_data * 0.9)
+X_train = X[:n_train_data]
+C_train_onehot = C_onehot[:n_train_data]
+X_es = X[n_train_data:n_es_data]
+C_es_onehot = C_onehot[n_train_data:n_es_data]
+X_valid = X[n_es_data:]
+C_valid_onehot = C_onehot[n_es_data:]
 
 max_valid_acc = opt_epoch_num = opt_batch_part = train_acc = test_acc = 0
 
+best_es_validation = 0
+arch_accs = []
+train_accs = []
+epoch_steps = 0
 for e_i in range(n_epochs):
   for b_i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot,
                                                                  shuffle=False, batchsize=batch_size)):
     sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys,
                                     learning_rate: lr})
-  train_acc = sess.run(accuracy, feed_dict={x: X_train, y_: C_train_onehot})
-  test_acc = sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot})
-  print("test accuracy after", e_i, "epochs =", test_acc,
-        # int(e_i*n_data/batch_size), "batches of size", batch_size, "=",
-        "train accuracy", train_acc)
+  es_acc = sess.run(accuracy, feed_dict={x: X_es, y_: C_es_onehot})
+  train_accs.append(1 - sess.run(accuracy, feed_dict={x: X_train, y_: C_train_onehot}))
+  arch_accs.append(1 - sess.run(accuracy, feed_dict={x: X_valid, y_: C_valid_onehot}))
+  print("training acc = %.6f" % train_accs[-1], "arch valid acc = %.6f" % arch_accs[-1])
+  epoch_steps += 1
+  if es_acc >= best_es_validation:
+      best_es_validation = es_acc
+  else:
+      break
 
-print("Learning rate = %f" % lr,
-      "training acc = %.6f" % train_acc,
-      "testing acc = %.6f" % test_acc,
-      # ", more precisely", (opt_epoch_num*batch_size)+opt_batch_part,
-      # "mini matches of size", batch_size
-     )
+import matplotlib.pyplot as plt
+fig = plt.figure()
+arch, = plt.plot([i for i in range(epoch_steps)], arch_accs, 'b-', label='Arch Validation Set')
+tr, = plt.plot([i for i in range(epoch_steps)], train_accs, 'r-', label='Training Set')
+plt.legend(handles=[arch, tr])
+plt.xlabel("Number of epochs")
+plt.ylabel("Misclassification rate")
+
+plt.tight_layout()
+plt.show()
