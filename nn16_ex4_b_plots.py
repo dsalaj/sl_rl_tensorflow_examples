@@ -50,7 +50,7 @@ X[:, :] = (X[:, :] - X_means[:]) / X_stds[:]
 # X_tst_stds = np.std(X_tst, axis=0)
 # X_tst[:, :] = (X_tst[:, :] - X_tst_means[:]) / X_tst_stds[:]
 
-n_data = C.shape[0]
+n_data = C.shape[0]  # = 6238
 # n_tst_data = C_tst.shape[0]
 n_features = X.shape[1]  # = 300
 n_classes = np.max(C)  # = 26
@@ -134,7 +134,7 @@ gd_misclass_data = []
 adam_misclass_data = []
 rmsprop_misclass_data = []
 descent_steps = 0
-gd_lr = 0.1
+gd_lr = 0.05
 adam_lr = 0.0005
 rmsprop_lr = 0.001
 reset_W = W.assign(tf.truncated_normal([n_features, n_classes], stddev=0.1))
