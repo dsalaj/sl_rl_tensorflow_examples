@@ -8,7 +8,7 @@ batch_size = 50
 n_epochs = 50
 lr = 0.05
 weight_decay = 0.0
-keep_prob = 0.99
+keep_prob_train = 0.95
 
 
 def shuffle_in_unison_scary(a, b):
@@ -116,10 +116,11 @@ bh = tf.Variable(tf.constant(0.1, shape=[n_hidden]))
 Whh = _variable_with_weight_decay("Whh", [n_hidden, n_classes], stddev=0.1, wd=weight_decay)
 bhh = tf.Variable(tf.constant(0.1, shape=[n_classes]))
 
+keep_prob = tf.placeholder(tf.float32)
 a_inpt = tf.matmul(x, W) + b
 inpt = tf.nn.dropout(tf.nn.relu(a_inpt), keep_prob)
 b_out = tf.matmul(inpt, Wh) + bh
-out = tf.nn.dropout(tf.nn.relu(b_out), keep_prob)
+out = tf.nn.relu(b_out)
 y = tf.matmul(out, Whh) + bhh
 # not applying softmax as it is implicitly used in cross_entropy bellow
 
@@ -164,10 +165,9 @@ best_epoch_num = 0
 for e_i in range(n_epochs):
   for b_i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot,
                                                                  shuffle=False, batchsize=batch_size)):
-    sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys,
-                                    learning_rate: lr})
-  es_acc = sess.run(accuracy, feed_dict={x: X_es, y_: C_es_onehot})
-  train_accs.append(1 - sess.run(accuracy, feed_dict={x: X_train, y_: C_train_onehot}))
+    sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: keep_prob_train, learning_rate: lr})
+  es_acc = sess.run(accuracy, feed_dict={x: X_es, y_: C_es_onehot, keep_prob: 1.})
+  train_accs.append(1 - sess.run(accuracy, feed_dict={x: X_train, y_: C_train_onehot, keep_prob: 1.}))
   # es_accs.append(1 - sess.run(accuracy, feed_dict={x: X_es, y_: C_es_onehot}))
   epoch_steps += 1
   # print("epoch", epoch_steps, "training acc = %.6f" % train_accs[-1], "es valid acc = %.6f" % es_acc)
@@ -192,9 +192,9 @@ test_mcs = []
 epoch_steps = 0
 for e_i in range(best_epoch_num):
   for b_i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X, C_onehot, shuffle=False, batchsize=batch_size)):
-      sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys, learning_rate: lr})
-  final_train_mcs.append(1 - sess.run(accuracy, feed_dict={x: X, y_: C_onehot}))
-  test_mcs.append(1 - sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot}))
+      sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys, learning_rate: lr, keep_prob: keep_prob_train})
+  final_train_mcs.append(1 - sess.run(accuracy, feed_dict={x: X, y_: C_onehot, keep_prob: 1.}))
+  test_mcs.append(1 - sess.run(accuracy, feed_dict={x: X_tst, y_: C_tst_onehot, keep_prob: 1.}))
   print("epoch", e_i, "training mce = %.6f" % final_train_mcs[-1], "testing mce = %.6f" % test_mcs[-1])
   epoch_steps += 1
 
