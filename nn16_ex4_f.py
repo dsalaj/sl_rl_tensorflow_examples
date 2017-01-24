@@ -8,7 +8,7 @@ batch_size = 50
 n_epochs = 50
 lr = 0.05
 weight_decay = 0.0
-keep_prob_train = 0.95
+keep_prob_train = 0.7
 
 
 def shuffle_in_unison_scary(a, b):
