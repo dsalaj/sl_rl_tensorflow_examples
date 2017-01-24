@@ -29,7 +29,7 @@ pl.close('all')   # closes all previous figures
 
 # Load dataset
 file_in = open('isolet_crop_train.pkl','rb')
-isolet_data = pckl.load(file_in)  # Python 3
+isolet_data = pckl.load(file_in) # Python 3
 #isolet_data = pckl.load(file_in, encoding='bytes') # Python 3
 file_in.close()
 X = isolet_data[0]   # input vectors X[i,:] is i-th example
@@ -73,11 +73,11 @@ cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y, y_))
 learning_rate = tf.placeholder(tf.float32)
 
 # optimal learning rate for GD is 0.1
-# train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(cross_entropy)
+train_gd = tf.train.GradientDescentOptimizer(learning_rate).minimize(cross_entropy)
 # optimal learning rate for Adam is 0.0005
-# train_step = tf.train.AdamOptimizer(learning_rate).minimize(cross_entropy)
+train_adam = tf.train.AdamOptimizer(learning_rate).minimize(cross_entropy)
 # optimal learning rate for RMSProp is 0.001
-train_step = tf.train.RMSPropOptimizer(learning_rate).minimize(cross_entropy)
+train_rmsprop = tf.train.RMSPropOptimizer(learning_rate).minimize(cross_entropy)
 
 sess = tf.InteractiveSession()
 tf.initialize_all_variables().run()
@@ -95,7 +95,7 @@ C_train_onehot = C_onehot[:n_train_data]
 
 X_valid = X[n_train_data:]
 C_valid_onehot = C_onehot[n_train_data:]
-
+'''
 for lr in [0.0001, 0.0005, 0.0008] + list(np.arange(0.001, 0.01, 0.002)) + \
           [0.01, 0.02] + list(np.arange(0.05, 0.5, 0.05)):
   a = W.assign(tf.truncated_normal([n_features, n_classes], stddev=0.1))
@@ -127,3 +127,66 @@ for lr in [0.0001, 0.0005, 0.0008] + list(np.arange(0.001, 0.01, 0.002)) + \
         "training acc = %.6f" % train_accs[opt_epoch_num],
         "validation acc = %.6f" % valid_accs[opt_epoch_num],
        )
+'''
+
+epochs = 30
+gd_misclass_data = []
+adam_misclass_data = []
+rmsprop_misclass_data = []
+descent_steps = 0
+gd_lr = 0.1
+adam_lr = 0.0005
+rmsprop_lr = 0.001
+reset_W = W.assign(tf.truncated_normal([n_features, n_classes], stddev=0.1))
+reset_b = b.assign(tf.constant(0.1, shape=[n_classes]))
+
+sess.run([reset_W, reset_b], feed_dict={})
+for _ in range(epochs):
+  for _, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot,
+                                                                 shuffle=True, batchsize=batch_size)):
+    sess.run(train_gd, feed_dict={x: batch_xs, y_: batch_ys, learning_rate: gd_lr})
+    valid_acc = sess.run(accuracy, feed_dict={x: X_valid, y_: C_valid_onehot})
+    gd_misclass_data.append(1-valid_acc)
+    descent_steps += 1
+
+sess.run([reset_W, reset_b], feed_dict={})
+for _ in range(epochs):
+  for _, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot,
+                                                                 shuffle=True, batchsize=batch_size)):
+    sess.run(train_adam, feed_dict={x: batch_xs, y_: batch_ys, learning_rate: adam_lr})
+    valid_acc = sess.run(accuracy, feed_dict={x: X_valid, y_: C_valid_onehot})
+    adam_misclass_data.append(1-valid_acc)
+
+sess.run([reset_W, reset_b], feed_dict={})
+for _ in range(epochs):
+  for _, (batch_xs, batch_ys) in enumerate(iterate_minibatches(X_train, C_train_onehot,
+                                                                 shuffle=True, batchsize=batch_size)):
+    sess.run(train_rmsprop, feed_dict={x: batch_xs, y_: batch_ys, learning_rate: rmsprop_lr})
+    valid_acc = sess.run(accuracy, feed_dict={x: X_valid, y_: C_valid_onehot})
+    rmsprop_misclass_data.append(1-valid_acc)
+
+import matplotlib.pyplot as plt
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+ax2 = ax1.twiny()
+gd, = ax1.plot([i for i in range(descent_steps)], gd_misclass_data,      'b-', label='GD')
+adam, = ax1.plot([i for i in range(descent_steps)], adam_misclass_data,    'r-', label='ADAM')
+rmsprop, = ax1.plot([i for i in range(descent_steps)], rmsprop_misclass_data, 'g-', label='RMSProp')
+plt.legend(handles=[gd, adam, rmsprop])
+ax1.set_xlabel("Number of descent steps")
+ax1.set_ylabel("Misclassification rate")
+descent_steps_per_epoch = int(descent_steps / epochs)
+
+
+def tick_function(X):
+    V = X / descent_steps_per_epoch
+    return ["%d" % z for z in V]
+
+epoch_ticks = np.array([i for i in range(0, descent_steps, descent_steps_per_epoch)])
+ax2.set_xlim(ax1.get_xlim())
+ax2.set_xticks(epoch_ticks)
+ax2.set_xticklabels(tick_function(epoch_ticks))
+ax2.set_xlabel(r"Number of epochs")
+
+plt.tight_layout()
+plt.show()
