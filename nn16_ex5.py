@@ -72,15 +72,12 @@ target = tf.placeholder(tf.float32, [None, 1])
 
 weight = tf.Variable(tf.truncated_normal([num_hidden, 1], stddev=0.1))
 bias = tf.Variable(tf.constant(0.1, shape=[1]))
-prediction = tf.nn.softmax(tf.matmul(last, weight) + bias)
-cross_entropy = tf.reduce_mean(-tf.reduce_sum(target * tf.log(prediction)))
-
-# out = tf.argmax(tf.nn.sigmoid(last), 1)
-# labels = tf.placeholder(tf.int32, [None, 1])
-# cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=out))
+prediction = tf.nn.sigmoid(tf.matmul(last, weight) + bias)
+cross_entropy = tf.reduce_mean(-target * tf.log(prediction) - (1-target) * tf.log(1 - prediction))
 
 # Test trained model
-correct_prediction = tf.equal(tf.round(prediction), target)
+r_prediction = tf.round(prediction)
+correct_prediction = tf.equal(r_prediction, target)
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 train_step = tf.train.RMSPropOptimizer(learning_rate).minimize(cross_entropy)
@@ -100,13 +97,11 @@ for i in range(3):
 
 # Start learning
 for _ in range(num_epochs):
-    # for b_i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(np.asarray(train_set['data']), np.asarray(train_set['labels']),
-    #                                                                shuffle=True, batchsize=32)):
-    #     sess.run(train_step, feed_dict={data: np.asarray(batch_xs), target: np.asarray(batch_ys)})
-    sess.run(train_step, feed_dict={data: train_set['data'], target: train_set['labels']})
-    weights = sess.run(weight, feed_dict={data: train_set['data'], target: train_set['labels']})
-    print(weights)
+    for b_i, (batch_xs, batch_ys) in enumerate(iterate_minibatches(np.asarray(train_set['data']), np.asarray(train_set['labels']),
+                                                                   shuffle=True, batchsize=64)):
+        sess.run(train_step, feed_dict={data: np.asarray(batch_xs), target: np.asarray(batch_ys)})
     train_acc = sess.run(accuracy, feed_dict={data: train_set['data'], target: train_set['labels']})
+    ce = sess.run(cross_entropy, feed_dict={data: train_set['data'], target: train_set['labels']})
     valid_acc = sess.run(accuracy, feed_dict={data: valid_set['data'], target: valid_set['labels']})
-    print("training error", train_acc, "validation error", valid_acc)
+    print("training accuracy", train_acc, "validation accuracy", valid_acc, "cross entropy", ce)
 
