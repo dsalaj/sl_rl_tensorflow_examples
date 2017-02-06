@@ -47,16 +47,23 @@ def generate_targets_xor(SEQ,offset=5):
 
 USE_LSTM = True
 num_hidden = 20
-seq_len = 20
+seq_len = 60
 learning_rate = 0.0025
-num_epochs = 100
+num_epochs = 180
 
 
 class RNN():
     def __init__(self, scope, use_lstm):
         with tf.variable_scope(scope):
             self.data = tf.placeholder(tf.float32, [None, seq_len, 1])
+            self.data_reshape = tf.reshape(self.data, (-1, seq_len))
 
+            self.Wi = tf.Variable(tf.truncated_normal([seq_len, num_hidden], stddev=0.1))
+            self.bi = tf.Variable(tf.constant(0.1, shape=[num_hidden]))
+
+            self.a_inpt = tf.matmul(self.data_reshape, self.Wi) + self.bi
+            self.inpt = tf.nn.relu(self.a_inpt)
+            self.inpt = tf.reshape(self.inpt, (-1, num_hidden, 1))
             # Setup the recurrent layer
             if use_lstm:
                 self.cell = tf.nn.rnn_cell.LSTMCell(num_hidden,state_is_tuple=True) # a layer of num_hidden LSTM cells
@@ -114,7 +121,7 @@ for e_i in range(num_epochs):
     valid_acc = sess.run(rnn.accuracy, feed_dict={rnn.data: valid_set['data'], rnn.target: valid_set['labels']})
     rnn_t_mcs.append(1. - train_acc)
     rnn_v_mcs.append(1. - valid_acc)
-    # print("epoch", e_i, "training accuracy", train_acc, "validation accuracy", valid_acc)
+    print("epoch", e_i, "training accuracy", train_acc, "validation accuracy", valid_acc)
 rnn_test_err = 1. - sess.run(rnn.accuracy, feed_dict={rnn.data: test_set['data'], rnn.target: test_set['labels']})
 print("Final RNN test error", rnn_test_err)
 
@@ -129,8 +136,8 @@ for e_i in range(num_epochs):
     valid_acc = sess.run(lstm.accuracy, feed_dict={lstm.data: valid_set['data'], lstm.target: valid_set['labels']})
     lstm_t_mcs.append(1. - train_acc)
     lstm_v_mcs.append(1. - valid_acc)
-    # print("epoch", e_i, "training accuracy", train_acc, "validation accuracy", valid_acc)
-lstm_test_err = 1. - sess.run(rnn.accuracy, feed_dict={rnn.data: test_set['data'], rnn.target: test_set['labels']})
+    print("epoch", e_i, "training accuracy", train_acc, "validation accuracy", valid_acc)
+lstm_test_err = 1. - sess.run(lstm.accuracy, feed_dict={lstm.data: test_set['data'], lstm.target: test_set['labels']})
 print("Final LSTM test error", lstm_test_err)
 
 fig = plt.figure()
